@@ -109,18 +109,24 @@ a:hover{text-decoration:underline}
     <div class="layer"><span class="dot l4"></span><span style="color:var(--text)">Lower Third</span><span style="margin-left:auto;color:#a855f7">text — fades in at start, fades out after 10 s</span></div>
     <div class="layer"><span class="dot l3"></span><span style="color:var(--text)">Lower Third BG</span><span style="margin-left:auto;color:#f59e0b">80 % black strip — same fade as text</span></div>
     <div class="layer"><span class="dot l2"></span><span style="color:var(--text)">Presenter Cam</span><span style="margin-left:auto;color:#3b82f6">320×180 PiP — lower-right corner</span></div>
-    <div class="layer"><span class="dot l1"></span><span style="color:var(--text)">Slides</span><span style="margin-left:auto">monitor capture — fills canvas</span></div>
+    <div class="layer"><span class="dot l1"></span><span style="color:var(--text)">Slides</span><span style="margin-left:auto">browser source — kiosk display page</span></div>
   </div>
 
-  <div class="row3">
-    <div class="field">
-      <label>Slides Monitor</label>
+  <div class="field">
+    <label>Slides URL (kiosk display page)</label>
+    <input type="text" id="slidesUrl" placeholder="http://10.0.0.X:3199/kiosk" oninput="toggleMonitorRow()">
+    <div class="hint">OBS renders this page directly as the slides layer — no screen capture needed. Leave blank to fall back to monitor capture.</div>
+  </div>
+
+  <div class="row">
+    <div class="field" id="monitorFallbackField" style="display:none">
+      <label>Fallback Monitor</label>
       <select id="slidesMonitor">
         <option value="0">Monitor 1 (Primary)</option>
         <option value="1">Monitor 2</option>
         <option value="2">Monitor 3</option>
       </select>
-      <div class="hint">Click Detect to populate from OBS</div>
+      <div class="hint">Used only when Slides URL is blank</div>
     </div>
     <div class="field">
       <label>Canvas Width</label>
@@ -271,6 +277,7 @@ async function loadConfig() {
     document.getElementById("recordingsRoot").value = c.recordingsRoot || "";
     document.getElementById("autoRemuxToMp4").value = String(c.autoRemuxToMp4 !== false);
     // Scene builder
+    document.getElementById("slidesUrl").value = c.slidesUrl || "";
     const monSel = document.getElementById("slidesMonitor");
     const savedMon = String(c.slidesMonitor ?? 0);
     for (const opt of monSel.options) {
@@ -278,6 +285,7 @@ async function loadConfig() {
     }
     document.getElementById("canvasWidth").value = c.canvasWidth || 1920;
     document.getElementById("canvasHeight").value = c.canvasHeight || 1080;
+    toggleMonitorRow();
     // Camera: set the saved value; options will be replaced by Detect
     const camSel = document.getElementById("cameraDevice");
     if (c.cameraDevice) {
@@ -304,6 +312,7 @@ async function saveConfig() {
     recordingsRoot: document.getElementById("recordingsRoot").value.trim(),
     autoRemuxToMp4: document.getElementById("autoRemuxToMp4").value === "true",
     // Scene builder
+    slidesUrl: document.getElementById("slidesUrl").value.trim(),
     slidesMonitor: parseInt(document.getElementById("slidesMonitor").value) || 0,
     cameraDevice: document.getElementById("cameraDevice").value.trim(),
     canvasWidth: parseInt(document.getElementById("canvasWidth").value) || 1920,
@@ -335,6 +344,12 @@ async function testObs() {
   } catch (e) {
     showToast("Error: " + e.message, "err");
   }
+}
+
+// ─── Scene Builder: toggle monitor fallback visibility ───
+function toggleMonitorRow() {
+  const hasUrl = document.getElementById("slidesUrl").value.trim().length > 0;
+  document.getElementById("monitorFallbackField").style.display = hasUrl ? "none" : "block";
 }
 
 // ─── Scene Builder: Detect sources ───

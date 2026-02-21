@@ -39,7 +39,8 @@ const DEFAULTS = {
   autoRemuxToMp4: true,
   pipSceneName: "Session Recording",
   titleSourceName: "Lower Third",
-  slidesMonitor: 0,
+  slidesUrl: "",          // browser source URL, e.g. http://10.0.0.X:3199/kiosk
+  slidesMonitor: 0,       // fallback if slidesUrl is blank
   cameraDevice: "",
   canvasWidth: 1920,
   canvasHeight: 1080,
@@ -327,13 +328,30 @@ async function obsSetupScenes() {
     } catch {}
   }
 
-  // ── 2. Slides — monitor capture, fills canvas (added first = rendered at bottom) ──
+  // ── 2. Slides — browser source (kiosk URL) or monitor capture fallback ──
   await removeInput(SLIDES);
+  let slidesInputSettings, slidesInputKind;
+  if (cfg.slidesUrl) {
+    slidesInputKind = "browser_source";
+    slidesInputSettings = {
+      url: cfg.slidesUrl,
+      width: W,
+      height: H,
+      fps: 30,
+      css: "body{margin:0;overflow:hidden;background:transparent}",
+      reroute_audio: false,
+      shutdown: false,
+      restart_when_active: false,
+    };
+  } else {
+    slidesInputKind = "monitor_capture";
+    slidesInputSettings = { monitor: cfg.slidesMonitor ?? 0 };
+  }
   const slides = await obs.call("CreateInput", {
     sceneName: SCENE,
     inputName: SLIDES,
-    inputKind: "monitor_capture",
-    inputSettings: { monitor: cfg.slidesMonitor ?? 0 },
+    inputKind: slidesInputKind,
+    inputSettings: slidesInputSettings,
     sceneItemEnabled: true,
   });
   await obs.call("SetSceneItemTransform", {
@@ -345,7 +363,7 @@ async function obsSetupScenes() {
       boundsWidth: W, boundsHeight: H,
     },
   });
-  log("OBS SETUP: slides →", `monitor ${cfg.slidesMonitor ?? 0}, fills ${W}×${H}`);
+  log("OBS SETUP: slides →", cfg.slidesUrl ? `browser: ${cfg.slidesUrl}` : `monitor ${cfg.slidesMonitor ?? 0}`);
 
   // ── 3. Presenter Cam — PiP, lower-right corner ──
   await removeInput(CAM);
