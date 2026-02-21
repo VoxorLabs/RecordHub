@@ -44,6 +44,7 @@ const DEFAULTS = {
   cameraDevice: "",
   canvasWidth: 1920,
   canvasHeight: 1080,
+  sessionDurationMins: 90, // auto-stop recording after this many minutes
   verbose: true,
 };
 
@@ -509,6 +510,25 @@ function remuxToMp4(mkvPath) {
   });
 }
 
+// ─── Auto-stop timer ───
+let autoStopTimer = null;
+
+function scheduleAutoStop(mins) {
+  if (autoStopTimer) { clearTimeout(autoStopTimer); autoStopTimer = null; }
+  if (!mins || mins <= 0) return;
+  autoStopTimer = setTimeout(async () => {
+    if (!STATE.recording) return;
+    log("AUTO-STOP: max duration reached (" + mins + " min)");
+    try { await obsStopRecord(); } catch (e) { log("AUTO-STOP ERROR", e.message); }
+    STATE.currentSession = null;
+  }, mins * 60 * 1000);
+  log("AUTO-STOP scheduled in", mins, "min");
+}
+
+function cancelAutoStop() {
+  if (autoStopTimer) { clearTimeout(autoStopTimer); autoStopTimer = null; }
+}
+
 // ─── Session Detection ───
 let pollTimer = null;
 let heartbeatTimer = null;
@@ -593,6 +613,7 @@ async function pollRoomAgent() {
           await obsSwitchScene(cfg.pipSceneName);
           await obsShowLowerThird(current.title, current.presenter);
           await obsStartRecord();
+          scheduleAutoStop(cfg.sessionDurationMins);
         } catch (e) {
           log("AUTO-START ERROR", e.message);
           addError("Auto-start recording failed: " + e.message);
@@ -600,6 +621,7 @@ async function pollRoomAgent() {
       }
     } else if (!current && STATE.currentSession && STATE.recording) {
       log("SESSION ENDED — stopping recording");
+      cancelAutoStop();
       try { await obsStopRecord(); } catch (e) { log("STOP ERROR", e.message); }
       STATE.currentSession = null;
     }
@@ -743,6 +765,7 @@ function startServer() {
         await obsShowLowerThird(STATE.currentSession.title, STATE.currentSession.presenter);
       }
       await obsStartRecord();
+      scheduleAutoStop(cfg.sessionDurationMins);
 
       log("MANUAL START", STATE.currentSession.title);
       res.json({ ok: true, session: STATE.currentSession });
@@ -755,6 +778,7 @@ function startServer() {
 
   app.post("/api/record/stop", async (req, res) => {
     try {
+      cancelAutoStop();
       const outputPath = await obsStopRecord();
       const session = STATE.currentSession;
       STATE.currentSession = null;
@@ -798,11 +822,13 @@ function startServer() {
           await obsShowLowerThird(STATE.currentSession.title, STATE.currentSession.presenter);
         }
         await obsStartRecord();
+        scheduleAutoStop(cfg.sessionDurationMins);
 
         log("TRIGGER START", STATE.currentSession.title, "— by", presenter || "unknown");
         res.json({ ok: true, session: STATE.currentSession });
 
       } else if (action === "stop") {
+        cancelAutoStop();
         const outputPath = await obsStopRecord();
         const session = STATE.currentSession;
         STATE.currentSession = null;

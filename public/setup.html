@@ -202,6 +202,13 @@ a:hover{text-decoration:underline}
       </select>
     </div>
   </div>
+  <div class="row">
+    <div class="field">
+      <label>Max Session Duration (minutes)</label>
+      <input type="number" id="sessionDurationMins" placeholder="90">
+      <div class="hint">Auto-stops recording after this many minutes as a safety net. Set to 0 to disable.</div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════ Trigger API ═══ -->
@@ -276,6 +283,7 @@ async function loadConfig() {
     document.getElementById("pollMs").value = c.pollMs || 5000;
     document.getElementById("recordingsRoot").value = c.recordingsRoot || "";
     document.getElementById("autoRemuxToMp4").value = String(c.autoRemuxToMp4 !== false);
+    document.getElementById("sessionDurationMins").value = c.sessionDurationMins ?? 90;
     // Scene builder
     document.getElementById("slidesUrl").value = c.slidesUrl || "";
     const monSel = document.getElementById("slidesMonitor");
@@ -311,6 +319,7 @@ async function saveConfig() {
     pollMs: parseInt(document.getElementById("pollMs").value) || 5000,
     recordingsRoot: document.getElementById("recordingsRoot").value.trim(),
     autoRemuxToMp4: document.getElementById("autoRemuxToMp4").value === "true",
+    sessionDurationMins: parseInt(document.getElementById("sessionDurationMins").value) || 0,
     // Scene builder
     slidesUrl: document.getElementById("slidesUrl").value.trim(),
     slidesMonitor: parseInt(document.getElementById("slidesMonitor").value) || 0,
