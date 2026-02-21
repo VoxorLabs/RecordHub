@@ -1,0 +1,14 @@
+{
+  "name": "presenterhub-recordhub",
+  "version": "1.0.0",
+  "description": "Automated session recording sidecar for PresenterHub — OBS WebSocket integration with PiP",
+  "main": "recordhub.js",
+  "scripts": {
+    "start": "node recordhub.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.22.1",
+    "obs-websocket-js": "^5.0.6"
+  }
+}

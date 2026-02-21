@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RecordHub — Setup</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#020617;--surface:#0f172a;--surface2:#1e293b;--border:rgba(148,163,184,0.10);--text:#e2e8f0;--muted:#94a3b8;--mono:'JetBrains Mono',ui-monospace,monospace;--red:#ef4444;--green:#22c55e;--blue:#3b82f6;--purple:#a855f7}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:40px 24px}
+.container{max-width:640px;margin:0 auto}
+h1{font-size:28px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+h1 .logo-rec{color:var(--red)}
+h1 .logo-hub{background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{font-size:14px;color:var(--muted);margin-bottom:32px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px}
+.card h2{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:16px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.field input,.field select{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:var(--mono);outline:none;transition:border-color .15s}
+.field input:focus{border-color:rgba(129,140,248,0.4)}
+.field .hint{font-size:11px;color:var(--muted);margin-top:4px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.actions{display:flex;gap:12px;margin-top:24px}
+.btn{padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
+.btn-primary:hover{transform:translateY(-1px)}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-outline:hover{border-color:var(--text);color:var(--text)}
+.btn-test{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:var(--blue)}
+.btn-test:hover{background:rgba(59,130,246,0.15)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:100;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
+.toast.ok{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80}
+.toast.err{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171}
+a{color:#818cf8;text-decoration:none}
+a:hover{text-decoration:underline}
+.back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-bottom:20px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<a href="/" class="back">&larr; Dashboard</a>
+<h1><span class="logo-rec">&#9679;</span> Record<span class="logo-hub">Hub</span> Setup</h1>
+<p class="subtitle">Configure OBS connection, RoomAgent polling, and recording settings.</p>
+
+<div class="card">
+  <h2>OBS Studio</h2>
+  <div class="field">
+    <label>OBS WebSocket URL</label>
+    <input type="text" id="obsWebSocketUrl" placeholder="ws://localhost:4455">
+    <div class="hint">OBS 28+ includes WebSocket server. Enable in Tools > WebSocket Server Settings.</div>
+  </div>
+  <div class="field">
+    <label>OBS WebSocket Password</label>
+    <input type="password" id="obsPassword" placeholder="Leave blank if not set">
+  </div>
+  <div class="row">
+    <div class="field">
+      <label>PiP Scene Name</label>
+      <input type="text" id="pipSceneName" placeholder="Session Recording">
+      <div class="hint">OBS scene to switch to when recording starts</div>
+    </div>
+    <div class="field">
+      <label>Lower Third Source Name</label>
+      <input type="text" id="titleSourceName" placeholder="Lower Third">
+      <div class="hint">Text source in OBS to update with session info</div>
+    </div>
+  </div>
+  <button class="btn btn-test" onclick="testObs()">Test OBS Connection</button>
+</div>
+
+<div class="card">
+  <h2>PresenterHub Server</h2>
+  <div class="row">
+    <div class="field">
+      <label>Server Base URL</label>
+      <input type="text" id="presenterHubBase" placeholder="http://10.0.0.166:8088">
+    </div>
+    <div class="field">
+      <label>Room</label>
+      <input type="text" id="room" placeholder="BallroomA">
+      <div class="hint">Used for heartbeat and file organization</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>RoomAgent</h2>
+  <div class="row">
+    <div class="field">
+      <label>RoomAgent Base URL</label>
+      <input type="text" id="roomAgentBase" placeholder="http://localhost:3199">
+      <div class="hint">Local RoomAgent for session detection</div>
+    </div>
+    <div class="field">
+      <label>Poll Interval (ms)</label>
+      <input type="number" id="pollMs" placeholder="5000">
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Recording</h2>
+  <div class="row">
+    <div class="field">
+      <label>Recordings Folder</label>
+      <input type="text" id="recordingsRoot" placeholder="C:\RecordHub\recordings">
+    </div>
+    <div class="field">
+      <label>Auto-Remux to MP4</label>
+      <select id="autoRemuxToMp4">
+        <option value="true">Yes (requires ffmpeg)</option>
+        <option value="false">No (keep MKV)</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="actions">
+  <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
+  <a href="/" class="btn btn-outline">Cancel</a>
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(msg,type){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.className="toast show "+(type||"ok");
+  setTimeout(()=>t.className="toast",3000);
+}
+
+async function loadConfig(){
+  try{
+    const r=await fetch("/api/config");
+    const d=await r.json();
+    if(!d.ok) return;
+    const c=d.config;
+    document.getElementById("obsWebSocketUrl").value=c.obsWebSocketUrl||"";
+    document.getElementById("obsPassword").value="";
+    document.getElementById("pipSceneName").value=c.pipSceneName||"";
+    document.getElementById("titleSourceName").value=c.titleSourceName||"";
+    document.getElementById("presenterHubBase").value=c.presenterHubBase||"";
+    document.getElementById("room").value=c.room||"";
+    document.getElementById("roomAgentBase").value=c.roomAgentBase||"";
+    document.getElementById("pollMs").value=c.pollMs||5000;
+    document.getElementById("recordingsRoot").value=c.recordingsRoot||"";
+    document.getElementById("autoRemuxToMp4").value=String(c.autoRemuxToMp4!==false);
+  }catch(e){showToast("Failed to load config","err");}
+}
+
+async function saveConfig(){
+  const cfg={
+    obsWebSocketUrl:document.getElementById("obsWebSocketUrl").value.trim(),
+    pipSceneName:document.getElementById("pipSceneName").value.trim(),
+    titleSourceName:document.getElementById("titleSourceName").value.trim(),
+    presenterHubBase:document.getElementById("presenterHubBase").value.trim(),
+    room:document.getElementById("room").value.trim(),
+    roomAgentBase:document.getElementById("roomAgentBase").value.trim(),
+    pollMs:parseInt(document.getElementById("pollMs").value)||5000,
+    recordingsRoot:document.getElementById("recordingsRoot").value.trim(),
+    autoRemuxToMp4:document.getElementById("autoRemuxToMp4").value==="true",
+  };
+  const pw=document.getElementById("obsPassword").value.trim();
+  if(pw&&pw!=="****") cfg.obsPassword=pw;
+  try{
+    const r=await fetch("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});
+    const d=await r.json();
+    if(d.ok) showToast("Configuration saved! Restart RecordHub to apply.","ok");
+    else showToast(d.error||"Save failed","err");
+  }catch(e){showToast("Network error","err");}
+}
+
+async function testObs(){
+  try{
+    const r=await fetch("/api/obs/reconnect",{method:"POST"});
+    const d=await r.json();
+    if(d.connected) showToast("OBS connected successfully!","ok");
+    else showToast("OBS connection failed: "+(d.error||"unknown"),"err");
+  }catch(e){showToast("Error: "+e.message,"err");}
+}
+
+loadConfig();
+</script>
+</body>
+</html>
