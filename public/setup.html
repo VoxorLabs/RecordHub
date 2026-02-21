@@ -426,7 +426,12 @@ async function buildScenes() {
     const d = await r.json();
     if (d.ok) {
       progress(`Scene "${d.scene}" built successfully.`, "ok");
-      progress("Slides · Presenter Cam PiP · Lower Third with 10 s fade — all ready.", "ok");
+      progress(`Slides: ${d.slidesKind} · Camera: ${d.camKind} · Text: ${d.textKind}`, "ok");
+      if (d.warnings && d.warnings.length) {
+        d.warnings.forEach(w => progress("Warning: " + w));
+      } else {
+        progress("All sources created — ready to record.", "ok");
+      }
       showToast("OBS scene built!", "ok");
     } else {
       progress("Error: " + (d.error || "unknown error"), "err");

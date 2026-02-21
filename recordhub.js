@@ -270,33 +270,51 @@ async function fadeOutLowerThird(cfg) {
 }
 
 // ─── OBS Scene Setup ───
-//
-// Creates the "Session Recording" scene with:
-//   • Slides    — monitor capture, fills canvas (bottom layer)
-//   • Presenter Cam — 320×180 PiP, lower-right corner
-//   • Lower Third BG — full-width 90 px dark strip at bottom (hidden until session starts)
-//   • Lower Third   — presenter name text, sits on the strip (hidden until session starts)
-//
 async function obsSetupScenes() {
   if (!obs || !STATE.obsConnected) throw new Error("OBS not connected");
   const cfg = readConfig();
 
-  const SCENE   = cfg.pipSceneName;              // "Session Recording"
+  const SCENE   = cfg.pipSceneName;
   const W       = cfg.canvasWidth  || 1920;
   const H       = cfg.canvasHeight || 1080;
   const SLIDES  = "Slides";
   const CAM     = "Presenter Cam";
   const LT_BG   = "Lower Third BG";
-  const LT_TEXT = cfg.titleSourceName;           // "Lower Third"
+  const LT_TEXT = cfg.titleSourceName;
 
-  // PiP: 320×180 in lower-right corner, 24 px from edges
   const PIP_W = 320, PIP_H = 180, PIP_PAD = 24;
   const PIP_X = W - PIP_W - PIP_PAD;
   const PIP_Y = H - PIP_H - PIP_PAD;
+  const LT_H  = 90;
+  const LT_Y  = H - LT_H - 10;
 
-  // Lower-third bar: full-width, 90 px tall, 10 px from bottom
-  const LT_H = 90;
-  const LT_Y = H - LT_H - 10;
+  // ── Detect what OBS actually has installed ──
+  let kinds = new Set();
+  try {
+    const { inputKinds } = await obs.call("GetInputKindList", { unversioned: false });
+    kinds = new Set(inputKinds);
+    log("OBS SETUP: available kinds →", [...kinds].join(", "));
+  } catch (e) {
+    log("OBS SETUP: could not get input kinds —", e.message);
+  }
+
+  const pick = (...candidates) => candidates.find(k => kinds.has(k)) || candidates[0];
+
+  const colorKind  = pick("color_source_v3", "color_source_v2", "color_source");
+  const textKind   = pick("text_gdiplus", "text_ft2_source", "text_gdiplus_v2");
+  const camKind    = pick("dshow_input", "av_capture_input_v2", "av_capture_input", "v4l2_input");
+  const hasBrowser = kinds.size === 0 || kinds.has("browser_source"); // assume available if list empty
+
+  // Detect available filter kinds
+  let filterKinds = new Set();
+  try {
+    const fk = await obs.call("GetSourceFilterKindList");
+    filterKinds = new Set(fk.sourceFilterKinds || []);
+  } catch {}
+  const fadeFilterKind = (filterKinds.size === 0 || filterKinds.has("color_filter_v2"))
+    ? "color_filter_v2" : "color_filter";
+
+  log("OBS SETUP: using →", { colorKind, textKind, camKind, hasBrowser, fadeFilterKind });
 
   // ── helpers ──
   async function removeInput(name) {
@@ -304,14 +322,12 @@ async function obsSetupScenes() {
   }
 
   async function addFadeFilter(srcName) {
-    try {
-      await obs.call("RemoveSourceFilter", { sourceName: srcName, filterName: "Fade" });
-    } catch {}
+    try { await obs.call("RemoveSourceFilter", { sourceName: srcName, filterName: "Fade" }); } catch {}
     await obs.call("CreateSourceFilter", {
       sourceName: srcName,
       filterName: "Fade",
-      filterKind: "color_filter_v2",
-      filterSettings: { opacity: 0.0 },   // hidden by default
+      filterKind: fadeFilterKind,
+      filterSettings: { opacity: 0.0 },
     });
   }
 
@@ -329,123 +345,94 @@ async function obsSetupScenes() {
     } catch {}
   }
 
-  // ── 2. Slides — browser source (kiosk URL) or monitor capture fallback ──
+  const warnings = [];
+
+  // ── 2. Slides ──
   await removeInput(SLIDES);
-  let slidesInputSettings, slidesInputKind;
-  if (cfg.slidesUrl) {
-    slidesInputKind = "browser_source";
-    slidesInputSettings = {
+  let slidesKind, slidesSettings;
+  if (cfg.slidesUrl && hasBrowser) {
+    slidesKind = "browser_source";
+    slidesSettings = {
       url: cfg.slidesUrl,
-      width: W,
-      height: H,
-      fps: 30,
+      width: W, height: H, fps: 30,
       css: "body{margin:0;overflow:hidden;background:transparent}",
-      reroute_audio: false,
-      shutdown: false,
-      restart_when_active: false,
+      reroute_audio: false, shutdown: false, restart_when_active: false,
     };
   } else {
-    slidesInputKind = "monitor_capture";
-    slidesInputSettings = { monitor: cfg.slidesMonitor ?? 0 };
+    if (cfg.slidesUrl && !hasBrowser) {
+      warnings.push("browser_source plugin not found in OBS — using monitor capture instead. Install obs-browser to use the kiosk URL.");
+    }
+    slidesKind = "monitor_capture";
+    slidesSettings = { monitor: cfg.slidesMonitor ?? 0 };
   }
   const slides = await obs.call("CreateInput", {
-    sceneName: SCENE,
-    inputName: SLIDES,
-    inputKind: slidesInputKind,
-    inputSettings: slidesInputSettings,
-    sceneItemEnabled: true,
+    sceneName: SCENE, inputName: SLIDES,
+    inputKind: slidesKind, inputSettings: slidesSettings, sceneItemEnabled: true,
   });
   await obs.call("SetSceneItemTransform", {
-    sceneName: SCENE,
-    sceneItemId: slides.sceneItemId,
-    sceneItemTransform: {
-      positionX: 0, positionY: 0, alignment: 5,
-      boundsType: "OBS_BOUNDS_SCALE_INNER",
-      boundsWidth: W, boundsHeight: H,
-    },
+    sceneName: SCENE, sceneItemId: slides.sceneItemId,
+    sceneItemTransform: { positionX: 0, positionY: 0, alignment: 5,
+      boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: W, boundsHeight: H },
   });
-  log("OBS SETUP: slides →", cfg.slidesUrl ? `browser: ${cfg.slidesUrl}` : `monitor ${cfg.slidesMonitor ?? 0}`);
+  log("OBS SETUP: slides →", slidesKind, cfg.slidesUrl || `monitor ${cfg.slidesMonitor ?? 0}`);
 
-  // ── 3. Presenter Cam — PiP, lower-right corner ──
+  // ── 3. Presenter Cam PiP ──
   await removeInput(CAM);
   try {
     const camSettings = {};
     if (cfg.cameraDevice) camSettings.video_device_id = cfg.cameraDevice;
     const cam = await obs.call("CreateInput", {
-      sceneName: SCENE,
-      inputName: CAM,
-      inputKind: "dshow_input",
-      inputSettings: camSettings,
-      sceneItemEnabled: true,
+      sceneName: SCENE, inputName: CAM,
+      inputKind: camKind, inputSettings: camSettings, sceneItemEnabled: true,
     });
     await obs.call("SetSceneItemTransform", {
-      sceneName: SCENE,
-      sceneItemId: cam.sceneItemId,
-      sceneItemTransform: {
-        positionX: PIP_X, positionY: PIP_Y, alignment: 5,
-        boundsType: "OBS_BOUNDS_SCALE_INNER",
-        boundsWidth: PIP_W, boundsHeight: PIP_H,
-      },
+      sceneName: SCENE, sceneItemId: cam.sceneItemId,
+      sceneItemTransform: { positionX: PIP_X, positionY: PIP_Y, alignment: 5,
+        boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: PIP_W, boundsHeight: PIP_H },
     });
-    log("OBS SETUP: camera PiP →", `${PIP_W}×${PIP_H} at (${PIP_X}, ${PIP_Y})`);
+    log("OBS SETUP: camera PiP →", camKind, `${PIP_W}×${PIP_H} at (${PIP_X},${PIP_Y})`);
   } catch (e) {
-    log("OBS SETUP: camera source skip —", e.message);
-    addError("Camera source skipped: " + e.message + " — connect camera and re-run setup");
+    warnings.push("Camera source skipped: " + e.message + " — connect camera and re-run setup.");
+    log("OBS SETUP: camera skip —", e.message);
   }
 
-  // ── 4. Lower Third BG — full-width semi-opaque dark strip, hidden by default ──
+  // ── 4. Lower Third BG ──
   await removeInput(LT_BG);
   const ltBg = await obs.call("CreateInput", {
-    sceneName: SCENE,
-    inputName: LT_BG,
-    inputKind: "color_source_v3",
-    inputSettings: { color: 3422552064 },  // 0xCC000000 — 80 % opaque black
-    sceneItemEnabled: true,
+    sceneName: SCENE, inputName: LT_BG,
+    inputKind: colorKind, inputSettings: { color: 3422552064 }, sceneItemEnabled: true,
   });
   await obs.call("SetSceneItemTransform", {
-    sceneName: SCENE,
-    sceneItemId: ltBg.sceneItemId,
-    sceneItemTransform: {
-      positionX: 0, positionY: LT_Y, alignment: 5,
-      boundsType: "OBS_BOUNDS_STRETCH",
-      boundsWidth: W, boundsHeight: LT_H,
-    },
+    sceneName: SCENE, sceneItemId: ltBg.sceneItemId,
+    sceneItemTransform: { positionX: 0, positionY: LT_Y, alignment: 5,
+      boundsType: "OBS_BOUNDS_STRETCH", boundsWidth: W, boundsHeight: LT_H },
   });
   await addFadeFilter(LT_BG);
 
-  // ── 5. Lower Third text — white bold, sits on the strip, hidden by default ──
+  // ── 5. Lower Third text ──
   await removeInput(LT_TEXT);
   const ltText = await obs.call("CreateInput", {
-    sceneName: SCENE,
-    inputName: LT_TEXT,
-    inputKind: "text_gdiplus",
+    sceneName: SCENE, inputName: LT_TEXT,
+    inputKind: textKind,
     inputSettings: {
       text: "",
       font: { face: "Arial", size: 52, style: "Bold", flags: 0 },
-      color: 4294967295,          // 0xFFFFFFFF — white
-      outline: true,
-      outline_color: 4278190080,  // 0xFF000000 — black
-      outline_size: 3,
-      extents: true,
-      extents_cx: W - 60,         // full width minus 30 px each side
-      extents_cy: LT_H - 16,
-      extents_wrap: false,
+      color: 4294967295, outline: true,
+      outline_color: 4278190080, outline_size: 3,
+      extents: true, extents_cx: W - 60, extents_cy: LT_H - 16, extents_wrap: false,
     },
     sceneItemEnabled: true,
   });
   await obs.call("SetSceneItemTransform", {
-    sceneName: SCENE,
-    sceneItemId: ltText.sceneItemId,
-    sceneItemTransform: {
-      positionX: 30, positionY: LT_Y + 8, alignment: 5,
-      boundsType: "OBS_BOUNDS_NONE",
-    },
+    sceneName: SCENE, sceneItemId: ltText.sceneItemId,
+    sceneItemTransform: { positionX: 30, positionY: LT_Y + 8, alignment: 5,
+      boundsType: "OBS_BOUNDS_NONE" },
   });
   await addFadeFilter(LT_TEXT);
 
-  log("OBS SETUP: lower third →", `y=${LT_Y}, h=${LT_H}`);
-  log("OBS SETUP: complete — scene", SCENE, "is ready");
-  return { scene: SCENE };
+  log("OBS SETUP: complete —", SCENE, "ready");
+  if (warnings.length) warnings.forEach(w => log("OBS SETUP WARNING:", w));
+  return { scene: SCENE, slidesKind, camKind, colorKind, textKind, fadeFilterKind, warnings };
 }
 
 // ─── Recording File Management ───
