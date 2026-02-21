@@ -6,30 +6,53 @@
 <title>RecordHub — Setup</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#020617;--surface:#0f172a;--surface2:#1e293b;--border:rgba(148,163,184,0.10);--text:#e2e8f0;--muted:#94a3b8;--mono:'JetBrains Mono',ui-monospace,monospace;--red:#ef4444;--green:#22c55e;--blue:#3b82f6;--purple:#a855f7}
+:root{--bg:#020617;--surface:#0f172a;--surface2:#1e293b;--border:rgba(148,163,184,0.10);--text:#e2e8f0;--muted:#94a3b8;--mono:'JetBrains Mono',ui-monospace,monospace;--red:#ef4444;--green:#22c55e;--blue:#3b82f6;--purple:#a855f7;--amber:#f59e0b}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:40px 24px}
-.container{max-width:640px;margin:0 auto}
+.container{max-width:680px;margin:0 auto}
 h1{font-size:28px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:10px}
 h1 .logo-rec{color:var(--red)}
 h1 .logo-hub{background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .subtitle{font-size:14px;color:var(--muted);margin-bottom:32px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px}
-.card h2{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:16px}
+.card h2{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card-desc{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5}
 .field{margin-bottom:16px}
 .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
 .field input,.field select{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:var(--mono);outline:none;transition:border-color .15s}
-.field input:focus{border-color:rgba(129,140,248,0.4)}
+.field input:focus,.field select:focus{border-color:rgba(129,140,248,0.4)}
 .field .hint{font-size:11px;color:var(--muted);margin-top:4px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.actions{display:flex;gap:12px;margin-top:24px}
+.row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px}
+.actions{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
 .btn{padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:all .15s}
 .btn-primary{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
 .btn-primary:hover{transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted)}
 .btn-outline:hover{border-color:var(--text);color:var(--text)}
 .btn-test{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:var(--blue)}
 .btn-test:hover{background:rgba(59,130,246,0.15)}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:100;opacity:0;transition:opacity .3s}
+.btn-green{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:var(--green)}
+.btn-green:hover{background:rgba(34,197,94,0.15)}
+.btn-green:disabled{opacity:.4;cursor:not-allowed}
+.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:2px 8px;border-radius:999px;border:1px solid rgba(34,197,94,0.3);background:rgba(34,197,94,0.08);color:var(--green);vertical-align:middle}
+.scene-layout{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:12px;font-family:var(--mono);color:var(--muted);line-height:1.8;margin-bottom:16px}
+.scene-layout .layer{display:flex;align-items:center;gap:10px}
+.scene-layout .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.scene-layout .l1{background:#64748b}
+.scene-layout .l2{background:#3b82f6}
+.scene-layout .l3{background:#f59e0b}
+.scene-layout .l4{background:#a855f7}
+.progress-box{margin-top:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;font-family:var(--mono);color:var(--muted);min-height:48px;display:none}
+.progress-box.show{display:block}
+.progress-line{margin-bottom:2px}
+.progress-line.ok{color:var(--green)}
+.progress-line.err{color:var(--red)}
+.code-block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;font-family:var(--mono);color:var(--text);line-height:1.7;margin-top:6px;word-break:break-all}
+.code-block .key{color:#818cf8}
+.code-block .val{color:#4ade80}
+.code-block .op{color:var(--amber)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:100;opacity:0;transition:opacity .3s;white-space:nowrap}
 .toast.show{opacity:1}
 .toast.ok{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80}
 .toast.err{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171}
@@ -43,14 +66,15 @@ a:hover{text-decoration:underline}
 
 <a href="/" class="back">&larr; Dashboard</a>
 <h1><span class="logo-rec">&#9679;</span> Record<span class="logo-hub">Hub</span> Setup</h1>
-<p class="subtitle">Configure OBS connection, RoomAgent polling, and recording settings.</p>
+<p class="subtitle">Configure OBS, build your recording scene, and connect your room PC trigger.</p>
 
+<!-- ═══════════════════════════════════════ OBS Studio ═══ -->
 <div class="card">
   <h2>OBS Studio</h2>
+  <div class="card-desc">Connection settings for OBS WebSocket (Tools &rsaquo; WebSocket Server Settings).</div>
   <div class="field">
     <label>OBS WebSocket URL</label>
     <input type="text" id="obsWebSocketUrl" placeholder="ws://localhost:4455">
-    <div class="hint">OBS 28+ includes WebSocket server. Enable in Tools > WebSocket Server Settings.</div>
   </div>
   <div class="field">
     <label>OBS WebSocket Password</label>
@@ -60,17 +84,71 @@ a:hover{text-decoration:underline}
     <div class="field">
       <label>PiP Scene Name</label>
       <input type="text" id="pipSceneName" placeholder="Session Recording">
-      <div class="hint">OBS scene to switch to when recording starts</div>
+      <div class="hint">Scene to switch to when recording starts</div>
     </div>
     <div class="field">
       <label>Lower Third Source Name</label>
       <input type="text" id="titleSourceName" placeholder="Lower Third">
-      <div class="hint">Text source in OBS to update with session info</div>
+      <div class="hint">Must match what Scene Builder creates</div>
     </div>
   </div>
   <button class="btn btn-test" onclick="testObs()">Test OBS Connection</button>
 </div>
 
+<!-- ═══════════════════════════════════════ Scene Builder ═══ -->
+<div class="card">
+  <h2>Scene Builder <span class="badge">Auto-Configure OBS</span></h2>
+  <div class="card-desc">
+    Builds the full recording scene in OBS automatically — no manual source setup needed.
+    OBS must be running and connected before clicking Build.
+  </div>
+
+  <!-- Visual layout preview -->
+  <div class="scene-layout">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;color:var(--muted)">Scene layers (top → bottom in OBS)</div>
+    <div class="layer"><span class="dot l4"></span><span style="color:var(--text)">Lower Third</span><span style="margin-left:auto;color:#a855f7">text — fades in at start, fades out after 10 s</span></div>
+    <div class="layer"><span class="dot l3"></span><span style="color:var(--text)">Lower Third BG</span><span style="margin-left:auto;color:#f59e0b">80 % black strip — same fade as text</span></div>
+    <div class="layer"><span class="dot l2"></span><span style="color:var(--text)">Presenter Cam</span><span style="margin-left:auto;color:#3b82f6">320×180 PiP — lower-right corner</span></div>
+    <div class="layer"><span class="dot l1"></span><span style="color:var(--text)">Slides</span><span style="margin-left:auto">monitor capture — fills canvas</span></div>
+  </div>
+
+  <div class="row3">
+    <div class="field">
+      <label>Slides Monitor</label>
+      <select id="slidesMonitor">
+        <option value="0">Monitor 1 (Primary)</option>
+        <option value="1">Monitor 2</option>
+        <option value="2">Monitor 3</option>
+      </select>
+      <div class="hint">Click Detect to populate from OBS</div>
+    </div>
+    <div class="field">
+      <label>Canvas Width</label>
+      <input type="number" id="canvasWidth" value="1920">
+    </div>
+    <div class="field">
+      <label>Canvas Height</label>
+      <input type="number" id="canvasHeight" value="1080">
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Camera Device</label>
+    <select id="cameraDevice">
+      <option value="">— Click Detect to populate —</option>
+    </select>
+    <div class="hint">DirectShow camera used for the presenter PiP</div>
+  </div>
+
+  <div class="actions" style="margin-top:8px">
+    <button class="btn btn-test" onclick="detectSources()">Detect Sources</button>
+    <button class="btn btn-green" id="btnBuild" onclick="buildScenes()">Build OBS Scenes</button>
+  </div>
+
+  <div class="progress-box" id="buildProgress"></div>
+</div>
+
+<!-- ═══════════════════════════════════════ PresenterHub Server ═══ -->
 <div class="card">
   <h2>PresenterHub Server</h2>
   <div class="row">
@@ -81,18 +159,19 @@ a:hover{text-decoration:underline}
     <div class="field">
       <label>Room</label>
       <input type="text" id="room" placeholder="BallroomA">
-      <div class="hint">Used for heartbeat and file organization</div>
+      <div class="hint">Used for heartbeat and file organisation</div>
     </div>
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════ RoomAgent ═══ -->
 <div class="card">
-  <h2>RoomAgent</h2>
+  <h2>RoomAgent (Poll)</h2>
   <div class="row">
     <div class="field">
       <label>RoomAgent Base URL</label>
       <input type="text" id="roomAgentBase" placeholder="http://localhost:3199">
-      <div class="hint">Local RoomAgent for session detection</div>
+      <div class="hint">Polled as a fallback if push trigger is not used</div>
     </div>
     <div class="field">
       <label>Poll Interval (ms)</label>
@@ -101,6 +180,7 @@ a:hover{text-decoration:underline}
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════ Recording ═══ -->
 <div class="card">
   <h2>Recording</h2>
   <div class="row">
@@ -118,70 +198,222 @@ a:hover{text-decoration:underline}
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════ Trigger API ═══ -->
+<div class="card">
+  <h2>Remote Trigger API</h2>
+  <div class="card-desc">
+    Your room PC sends a plain HTTP POST to start or stop recording. No authentication required &mdash; keep RecordHub on your local network.
+  </div>
+
+  <div class="field">
+    <label>Start Recording</label>
+    <div class="code-block">
+      <span class="op">POST</span> http://<span class="key">&lt;recordhub-ip&gt;</span>:3299/api/trigger<br>
+      {<br>
+      &nbsp;&nbsp;<span class="key">"action"</span>: <span class="val">"start"</span>,<br>
+      &nbsp;&nbsp;<span class="key">"title"</span>: <span class="val">"Talk Title"</span>,<br>
+      &nbsp;&nbsp;<span class="key">"presenter"</span>: <span class="val">"Jane Smith"</span>,<br>
+      &nbsp;&nbsp;<span class="key">"room"</span>: <span class="val">"BallroomA"</span><br>
+      }
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Stop Recording</label>
+    <div class="code-block">
+      <span class="op">POST</span> http://<span class="key">&lt;recordhub-ip&gt;</span>:3299/api/trigger<br>
+      { <span class="key">"action"</span>: <span class="val">"stop"</span> }
+    </div>
+  </div>
+
+  <div class="field" style="margin-bottom:0">
+    <label>Response</label>
+    <div class="code-block">
+      { <span class="key">"ok"</span>: <span class="val">true</span>, <span class="key">"session"</span>: { … } }
+    </div>
+    <div class="hint" style="margin-top:6px">Returns <code>ok: false</code> with an <code>error</code> string on failure.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ Save ═══ -->
 <div class="actions">
   <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
   <a href="/" class="btn btn-outline">Cancel</a>
 </div>
 
-</div>
+</div><!-- /container -->
 
 <div class="toast" id="toast"></div>
 
 <script>
-function showToast(msg,type){
-  const t=document.getElementById("toast");
-  t.textContent=msg;t.className="toast show "+(type||"ok");
-  setTimeout(()=>t.className="toast",3000);
+function showToast(msg, type) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show " + (type || "ok");
+  setTimeout(() => t.className = "toast", 3000);
 }
 
-async function loadConfig(){
-  try{
-    const r=await fetch("/api/config");
-    const d=await r.json();
-    if(!d.ok) return;
-    const c=d.config;
-    document.getElementById("obsWebSocketUrl").value=c.obsWebSocketUrl||"";
-    document.getElementById("obsPassword").value="";
-    document.getElementById("pipSceneName").value=c.pipSceneName||"";
-    document.getElementById("titleSourceName").value=c.titleSourceName||"";
-    document.getElementById("presenterHubBase").value=c.presenterHubBase||"";
-    document.getElementById("room").value=c.room||"";
-    document.getElementById("roomAgentBase").value=c.roomAgentBase||"";
-    document.getElementById("pollMs").value=c.pollMs||5000;
-    document.getElementById("recordingsRoot").value=c.recordingsRoot||"";
-    document.getElementById("autoRemuxToMp4").value=String(c.autoRemuxToMp4!==false);
-  }catch(e){showToast("Failed to load config","err");}
+// ─── Config ───
+async function loadConfig() {
+  try {
+    const r = await fetch("/api/config");
+    const d = await r.json();
+    if (!d.ok) return;
+    const c = d.config;
+    document.getElementById("obsWebSocketUrl").value = c.obsWebSocketUrl || "";
+    document.getElementById("obsPassword").value = "";
+    document.getElementById("pipSceneName").value = c.pipSceneName || "";
+    document.getElementById("titleSourceName").value = c.titleSourceName || "";
+    document.getElementById("presenterHubBase").value = c.presenterHubBase || "";
+    document.getElementById("room").value = c.room || "";
+    document.getElementById("roomAgentBase").value = c.roomAgentBase || "";
+    document.getElementById("pollMs").value = c.pollMs || 5000;
+    document.getElementById("recordingsRoot").value = c.recordingsRoot || "";
+    document.getElementById("autoRemuxToMp4").value = String(c.autoRemuxToMp4 !== false);
+    // Scene builder
+    const monSel = document.getElementById("slidesMonitor");
+    const savedMon = String(c.slidesMonitor ?? 0);
+    for (const opt of monSel.options) {
+      if (opt.value === savedMon) { opt.selected = true; break; }
+    }
+    document.getElementById("canvasWidth").value = c.canvasWidth || 1920;
+    document.getElementById("canvasHeight").value = c.canvasHeight || 1080;
+    // Camera: set the saved value; options will be replaced by Detect
+    const camSel = document.getElementById("cameraDevice");
+    if (c.cameraDevice) {
+      const opt = document.createElement("option");
+      opt.value = c.cameraDevice;
+      opt.textContent = c.cameraDevice;
+      opt.selected = true;
+      camSel.appendChild(opt);
+    }
+  } catch (e) {
+    showToast("Failed to load config", "err");
+  }
 }
 
-async function saveConfig(){
-  const cfg={
-    obsWebSocketUrl:document.getElementById("obsWebSocketUrl").value.trim(),
-    pipSceneName:document.getElementById("pipSceneName").value.trim(),
-    titleSourceName:document.getElementById("titleSourceName").value.trim(),
-    presenterHubBase:document.getElementById("presenterHubBase").value.trim(),
-    room:document.getElementById("room").value.trim(),
-    roomAgentBase:document.getElementById("roomAgentBase").value.trim(),
-    pollMs:parseInt(document.getElementById("pollMs").value)||5000,
-    recordingsRoot:document.getElementById("recordingsRoot").value.trim(),
-    autoRemuxToMp4:document.getElementById("autoRemuxToMp4").value==="true",
+async function saveConfig() {
+  const cfg = {
+    obsWebSocketUrl: document.getElementById("obsWebSocketUrl").value.trim(),
+    pipSceneName: document.getElementById("pipSceneName").value.trim(),
+    titleSourceName: document.getElementById("titleSourceName").value.trim(),
+    presenterHubBase: document.getElementById("presenterHubBase").value.trim(),
+    room: document.getElementById("room").value.trim(),
+    roomAgentBase: document.getElementById("roomAgentBase").value.trim(),
+    pollMs: parseInt(document.getElementById("pollMs").value) || 5000,
+    recordingsRoot: document.getElementById("recordingsRoot").value.trim(),
+    autoRemuxToMp4: document.getElementById("autoRemuxToMp4").value === "true",
+    // Scene builder
+    slidesMonitor: parseInt(document.getElementById("slidesMonitor").value) || 0,
+    cameraDevice: document.getElementById("cameraDevice").value.trim(),
+    canvasWidth: parseInt(document.getElementById("canvasWidth").value) || 1920,
+    canvasHeight: parseInt(document.getElementById("canvasHeight").value) || 1080,
   };
-  const pw=document.getElementById("obsPassword").value.trim();
-  if(pw&&pw!=="****") cfg.obsPassword=pw;
-  try{
-    const r=await fetch("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});
-    const d=await r.json();
-    if(d.ok) showToast("Configuration saved! Restart RecordHub to apply.","ok");
-    else showToast(d.error||"Save failed","err");
-  }catch(e){showToast("Network error","err");}
+  const pw = document.getElementById("obsPassword").value.trim();
+  if (pw && pw !== "****") cfg.obsPassword = pw;
+  try {
+    const r = await fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    });
+    const d = await r.json();
+    if (d.ok) showToast("Configuration saved!", "ok");
+    else showToast(d.error || "Save failed", "err");
+  } catch (e) {
+    showToast("Network error", "err");
+  }
 }
 
-async function testObs(){
-  try{
-    const r=await fetch("/api/obs/reconnect",{method:"POST"});
-    const d=await r.json();
-    if(d.connected) showToast("OBS connected successfully!","ok");
-    else showToast("OBS connection failed: "+(d.error||"unknown"),"err");
-  }catch(e){showToast("Error: "+e.message,"err");}
+// ─── OBS Connection Test ───
+async function testObs() {
+  try {
+    const r = await fetch("/api/obs/reconnect", { method: "POST" });
+    const d = await r.json();
+    if (d.connected) showToast("OBS connected successfully!", "ok");
+    else showToast("OBS connection failed: " + (d.error || "unknown"), "err");
+  } catch (e) {
+    showToast("Error: " + e.message, "err");
+  }
+}
+
+// ─── Scene Builder: Detect sources ───
+async function detectSources() {
+  showToast("Detecting monitors and cameras…", "ok");
+  try {
+    const r = await fetch("/api/obs/sources");
+    const d = await r.json();
+    if (!d.ok) { showToast(d.error || "Detection failed", "err"); return; }
+
+    // Populate monitor dropdown
+    const monSel = document.getElementById("slidesMonitor");
+    const prevMon = monSel.value;
+    monSel.innerHTML = "";
+    (d.monitors || []).forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = String(m.id);
+      opt.textContent = m.width ? `${m.name} (${m.width}×${m.height})` : m.name;
+      if (opt.value === prevMon) opt.selected = true;
+      monSel.appendChild(opt);
+    });
+
+    // Populate camera dropdown
+    const camSel = document.getElementById("cameraDevice");
+    const prevCam = camSel.value;
+    camSel.innerHTML = '<option value="">None / configure later</option>';
+    (d.cameras || []).forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.name;
+      if (c.id === prevCam) opt.selected = true;
+      camSel.appendChild(opt);
+    });
+
+    const mCount = d.monitors?.length || 0;
+    const cCount = d.cameras?.length || 0;
+    showToast(`Found ${mCount} monitor${mCount !== 1 ? "s" : ""}, ${cCount} camera${cCount !== 1 ? "s" : ""}`, "ok");
+  } catch (e) {
+    showToast("Detect failed: " + e.message, "err");
+  }
+}
+
+// ─── Scene Builder: Build scenes ───
+async function buildScenes() {
+  const btn = document.getElementById("btnBuild");
+  const box = document.getElementById("buildProgress");
+
+  function progress(msg, type) {
+    const line = document.createElement("div");
+    line.className = "progress-line" + (type ? " " + type : "");
+    line.textContent = msg;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  btn.disabled = true;
+  box.innerHTML = "";
+  box.classList.add("show");
+  progress("Saving config…");
+  await saveConfig();
+
+  progress("Sending build request to OBS…");
+  try {
+    const r = await fetch("/api/obs/setup-scenes", { method: "POST" });
+    const d = await r.json();
+    if (d.ok) {
+      progress(`Scene "${d.scene}" built successfully.`, "ok");
+      progress("Slides · Presenter Cam PiP · Lower Third with 10 s fade — all ready.", "ok");
+      showToast("OBS scene built!", "ok");
+    } else {
+      progress("Error: " + (d.error || "unknown error"), "err");
+      showToast(d.error || "Build failed", "err");
+    }
+  } catch (e) {
+    progress("Network error: " + e.message, "err");
+    showToast("Build failed: " + e.message, "err");
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 loadConfig();

@@ -4,7 +4,8 @@
  * RecordHub — Automated Session Recording Sidecar
  *
  * Controls OBS Studio via WebSocket to automatically record event sessions.
- * Triggered by RoomAgent kiosk session lifecycle or time-based polling.
+ * Triggered by RoomAgent kiosk session lifecycle, time-based polling, or
+ * direct HTTP trigger from a room PC.
  * Produces professional recordings with PiP (presenter over slides).
  *
  * Port: 3299
@@ -38,6 +39,10 @@ const DEFAULTS = {
   autoRemuxToMp4: true,
   pipSceneName: "Session Recording",
   titleSourceName: "Lower Third",
+  slidesMonitor: 0,
+  cameraDevice: "",
+  canvasWidth: 1920,
+  canvasHeight: 1080,
   verbose: true,
 };
 
@@ -96,14 +101,12 @@ let obs = null;
 async function connectObs() {
   const cfg = readConfig();
   try {
-    // Dynamic import for obs-websocket-js (ESM-compatible)
     const OBSWebSocket = require("obs-websocket-js").default || require("obs-websocket-js");
     obs = new OBSWebSocket();
 
     await obs.connect(cfg.obsWebSocketUrl, cfg.obsPassword || undefined);
     STATE.obsConnected = true;
 
-    // Get version info
     try {
       const ver = await obs.call("GetVersion");
       STATE.obsVersion = ver.obsVersion || ver.obsWebSocketVersion || "unknown";
@@ -117,7 +120,6 @@ async function connectObs() {
       log("OBS DISCONNECTED");
       STATE.obsConnected = false;
       STATE.obsVersion = null;
-      // Auto-reconnect after 5 seconds
       setTimeout(connectObs, 5000);
     });
 
@@ -127,7 +129,6 @@ async function connectObs() {
       addError("OBS connection error: " + err.message);
     });
 
-    // Listen for recording state changes from OBS
     obs.on("RecordStateChanged", (data) => {
       log("OBS RECORD STATE", data.outputState);
       if (data.outputState === "OBS_WEBSOCKET_OUTPUT_STOPPED") {
@@ -145,7 +146,6 @@ async function connectObs() {
     STATE.obsConnected = false;
     log("OBS CONNECT FAILED", e.message);
     addError("OBS connect failed: " + e.message);
-    // Retry in 10 seconds
     setTimeout(connectObs, 10000);
   }
 }
@@ -166,7 +166,6 @@ async function obsStopRecord() {
     log("RECORDING STOPPED", result.outputPath || "");
     return result.outputPath || null;
   } catch (e) {
-    // If not recording, that's fine
     if (e.message && e.message.includes("not active")) {
       STATE.recording = false;
       return null;
@@ -189,23 +188,6 @@ async function obsGetRecordStatus() {
   }
 }
 
-async function obsUpdateLowerThird(title, presenter) {
-  if (!obs || !STATE.obsConnected) return;
-  const cfg = readConfig();
-  try {
-    await obs.call("SetInputSettings", {
-      inputName: cfg.titleSourceName,
-      inputSettings: {
-        text: `${title}  —  ${presenter}`,
-      },
-    });
-    log("LOWER THIRD UPDATED", title, "—", presenter);
-  } catch (e) {
-    // Not critical — text source may not exist
-    log("LOWER THIRD UPDATE SKIP", e.message);
-  }
-}
-
 async function obsSwitchScene(sceneName) {
   if (!obs || !STATE.obsConnected) return;
   try {
@@ -214,6 +196,237 @@ async function obsSwitchScene(sceneName) {
   } catch (e) {
     log("SCENE SWITCH SKIP", e.message);
   }
+}
+
+// ─── Lower Third (show on session start, fade out after 10 s) ───
+let lowerThirdFadeTimer = null;
+
+async function obsShowLowerThird(title, presenter) {
+  if (!obs || !STATE.obsConnected) return;
+  const cfg = readConfig();
+
+  if (lowerThirdFadeTimer) {
+    clearTimeout(lowerThirdFadeTimer);
+    lowerThirdFadeTimer = null;
+  }
+
+  const text = presenter ? `${presenter}  ·  ${title}` : (title || "");
+
+  try {
+    // Update text content
+    await obs.call("SetInputSettings", {
+      inputName: cfg.titleSourceName,
+      inputSettings: { text },
+    });
+
+    // Reveal text source and background strip
+    for (const srcName of [cfg.titleSourceName, "Lower Third BG"]) {
+      try {
+        await obs.call("SetSourceFilterSettings", {
+          sourceName: srcName,
+          filterName: "Fade",
+          filterSettings: { opacity: 1.0 },
+        });
+      } catch {}
+    }
+
+    log("LOWER THIRD SHOWN", text);
+
+    // Schedule fade-out after 10 seconds
+    lowerThirdFadeTimer = setTimeout(() => fadeOutLowerThird(cfg), 10_000);
+  } catch (e) {
+    log("LOWER THIRD SHOW SKIP", e.message);
+  }
+}
+
+async function fadeOutLowerThird(cfg) {
+  if (!obs || !STATE.obsConnected) return;
+  lowerThirdFadeTimer = null;
+
+  try {
+    // Animate opacity 1.0 → 0.0 over ~1.5 s (10 steps × 150 ms)
+    for (let i = 10; i >= 0; i--) {
+      const opacity = i / 10;
+      await Promise.all([
+        obs.call("SetSourceFilterSettings", {
+          sourceName: cfg.titleSourceName,
+          filterName: "Fade",
+          filterSettings: { opacity },
+        }).catch(() => {}),
+        obs.call("SetSourceFilterSettings", {
+          sourceName: "Lower Third BG",
+          filterName: "Fade",
+          filterSettings: { opacity },
+        }).catch(() => {}),
+      ]);
+      await new Promise(r => setTimeout(r, 150));
+    }
+    log("LOWER THIRD FADED OUT");
+  } catch (e) {
+    log("LOWER THIRD FADE SKIP", e.message);
+  }
+}
+
+// ─── OBS Scene Setup ───
+//
+// Creates the "Session Recording" scene with:
+//   • Slides    — monitor capture, fills canvas (bottom layer)
+//   • Presenter Cam — 320×180 PiP, lower-right corner
+//   • Lower Third BG — full-width 90 px dark strip at bottom (hidden until session starts)
+//   • Lower Third   — presenter name text, sits on the strip (hidden until session starts)
+//
+async function obsSetupScenes() {
+  if (!obs || !STATE.obsConnected) throw new Error("OBS not connected");
+  const cfg = readConfig();
+
+  const SCENE   = cfg.pipSceneName;              // "Session Recording"
+  const W       = cfg.canvasWidth  || 1920;
+  const H       = cfg.canvasHeight || 1080;
+  const SLIDES  = "Slides";
+  const CAM     = "Presenter Cam";
+  const LT_BG   = "Lower Third BG";
+  const LT_TEXT = cfg.titleSourceName;           // "Lower Third"
+
+  // PiP: 320×180 in lower-right corner, 24 px from edges
+  const PIP_W = 320, PIP_H = 180, PIP_PAD = 24;
+  const PIP_X = W - PIP_W - PIP_PAD;
+  const PIP_Y = H - PIP_H - PIP_PAD;
+
+  // Lower-third bar: full-width, 90 px tall, 10 px from bottom
+  const LT_H = 90;
+  const LT_Y = H - LT_H - 10;
+
+  // ── helpers ──
+  async function removeInput(name) {
+    try { await obs.call("RemoveInput", { inputName: name }); } catch {}
+  }
+
+  async function addFadeFilter(srcName) {
+    try {
+      await obs.call("RemoveSourceFilter", { sourceName: srcName, filterName: "Fade" });
+    } catch {}
+    await obs.call("CreateSourceFilter", {
+      sourceName: srcName,
+      filterName: "Fade",
+      filterKind: "color_filter_v2",
+      filterSettings: { opacity: 0.0 },   // hidden by default
+    });
+  }
+
+  // ── 1. Create or clear the scene ──
+  try {
+    await obs.call("CreateScene", { sceneName: SCENE });
+    log("OBS SETUP: scene created —", SCENE);
+  } catch {
+    log("OBS SETUP: scene exists, clearing items");
+    try {
+      const { sceneItems } = await obs.call("GetSceneItemList", { sceneName: SCENE });
+      for (const item of sceneItems) {
+        await obs.call("RemoveSceneItem", { sceneName: SCENE, sceneItemId: item.sceneItemId });
+      }
+    } catch {}
+  }
+
+  // ── 2. Slides — monitor capture, fills canvas (added first = rendered at bottom) ──
+  await removeInput(SLIDES);
+  const slides = await obs.call("CreateInput", {
+    sceneName: SCENE,
+    inputName: SLIDES,
+    inputKind: "monitor_capture",
+    inputSettings: { monitor: cfg.slidesMonitor ?? 0 },
+    sceneItemEnabled: true,
+  });
+  await obs.call("SetSceneItemTransform", {
+    sceneName: SCENE,
+    sceneItemId: slides.sceneItemId,
+    sceneItemTransform: {
+      positionX: 0, positionY: 0, alignment: 5,
+      boundsType: "OBS_BOUNDS_SCALE_INNER",
+      boundsWidth: W, boundsHeight: H,
+    },
+  });
+  log("OBS SETUP: slides →", `monitor ${cfg.slidesMonitor ?? 0}, fills ${W}×${H}`);
+
+  // ── 3. Presenter Cam — PiP, lower-right corner ──
+  await removeInput(CAM);
+  try {
+    const camSettings = {};
+    if (cfg.cameraDevice) camSettings.video_device_id = cfg.cameraDevice;
+    const cam = await obs.call("CreateInput", {
+      sceneName: SCENE,
+      inputName: CAM,
+      inputKind: "dshow_input",
+      inputSettings: camSettings,
+      sceneItemEnabled: true,
+    });
+    await obs.call("SetSceneItemTransform", {
+      sceneName: SCENE,
+      sceneItemId: cam.sceneItemId,
+      sceneItemTransform: {
+        positionX: PIP_X, positionY: PIP_Y, alignment: 5,
+        boundsType: "OBS_BOUNDS_SCALE_INNER",
+        boundsWidth: PIP_W, boundsHeight: PIP_H,
+      },
+    });
+    log("OBS SETUP: camera PiP →", `${PIP_W}×${PIP_H} at (${PIP_X}, ${PIP_Y})`);
+  } catch (e) {
+    log("OBS SETUP: camera source skip —", e.message);
+    addError("Camera source skipped: " + e.message + " — connect camera and re-run setup");
+  }
+
+  // ── 4. Lower Third BG — full-width semi-opaque dark strip, hidden by default ──
+  await removeInput(LT_BG);
+  const ltBg = await obs.call("CreateInput", {
+    sceneName: SCENE,
+    inputName: LT_BG,
+    inputKind: "color_source_v3",
+    inputSettings: { color: 3422552064 },  // 0xCC000000 — 80 % opaque black
+    sceneItemEnabled: true,
+  });
+  await obs.call("SetSceneItemTransform", {
+    sceneName: SCENE,
+    sceneItemId: ltBg.sceneItemId,
+    sceneItemTransform: {
+      positionX: 0, positionY: LT_Y, alignment: 5,
+      boundsType: "OBS_BOUNDS_STRETCH",
+      boundsWidth: W, boundsHeight: LT_H,
+    },
+  });
+  await addFadeFilter(LT_BG);
+
+  // ── 5. Lower Third text — white bold, sits on the strip, hidden by default ──
+  await removeInput(LT_TEXT);
+  const ltText = await obs.call("CreateInput", {
+    sceneName: SCENE,
+    inputName: LT_TEXT,
+    inputKind: "text_gdiplus",
+    inputSettings: {
+      text: "",
+      font: { face: "Arial", size: 52, style: "Bold", flags: 0 },
+      color: 4294967295,          // 0xFFFFFFFF — white
+      outline: true,
+      outline_color: 4278190080,  // 0xFF000000 — black
+      outline_size: 3,
+      extents: true,
+      extents_cx: W - 60,         // full width minus 30 px each side
+      extents_cy: LT_H - 16,
+      extents_wrap: false,
+    },
+    sceneItemEnabled: true,
+  });
+  await obs.call("SetSceneItemTransform", {
+    sceneName: SCENE,
+    sceneItemId: ltText.sceneItemId,
+    sceneItemTransform: {
+      positionX: 30, positionY: LT_Y + 8, alignment: 5,
+      boundsType: "OBS_BOUNDS_NONE",
+    },
+  });
+  await addFadeFilter(LT_TEXT);
+
+  log("OBS SETUP: lower third →", `y=${LT_Y}, h=${LT_H}`);
+  log("OBS SETUP: complete — scene", SCENE, "is ready");
+  return { scene: SCENE };
 }
 
 // ─── Recording File Management ───
@@ -232,7 +445,6 @@ async function handleRecordingStopped(outputPath) {
   const s = STATE.currentSession;
 
   try {
-    // Build target filename
     const date = (s.date || "").replace(/-/g, "");
     const time = (s.start || "").replace(/[: ]/g, "").replace(/AM|PM/gi, "");
     const presenter = sanitizeFilename(s.presenter || "Unknown");
@@ -240,19 +452,16 @@ async function handleRecordingStopped(outputPath) {
     const ext = path.extname(outputPath);
     const newName = `${date}_${time}_${presenter}_${title}${ext}`;
 
-    // Target directory
     const roomDir = path.join(cfg.recordingsRoot, sanitizeFilename(s.room || cfg.room || "Room"));
     const dateDir = path.join(roomDir, s.date || "undated");
     await fsp.mkdir(dateDir, { recursive: true });
 
     const destPath = path.join(dateDir, newName);
 
-    // Move file
     try {
       await fsp.rename(outputPath, destPath);
       log("RECORDING MOVED", destPath);
     } catch {
-      // Cross-device? Copy + delete
       await fsp.copyFile(outputPath, destPath);
       await fsp.unlink(outputPath);
       log("RECORDING COPIED", destPath);
@@ -261,7 +470,6 @@ async function handleRecordingStopped(outputPath) {
     STATE.totalRecordings++;
     STATE.lastOutputPath = destPath;
 
-    // Auto-remux MKV → MP4
     if (cfg.autoRemuxToMp4 && ext.toLowerCase() === ".mkv") {
       remuxToMp4(destPath);
     }
@@ -273,15 +481,12 @@ async function handleRecordingStopped(outputPath) {
 
 function remuxToMp4(mkvPath) {
   const mp4Path = mkvPath.replace(/\.mkv$/i, ".mp4");
-  // Try ffmpeg first, fall back to OBS's own remux
   const cmd = `ffmpeg -i "${mkvPath}" -codec copy "${mp4Path}" -y`;
   exec(cmd, { windowsHide: true }, (err) => {
     if (err) {
       log("REMUX SKIP (ffmpeg not available)", path.basename(mkvPath));
     } else {
       log("REMUXED TO MP4", path.basename(mp4Path));
-      // Optionally delete the MKV
-      // fs.unlink(mkvPath, () => {});
     }
   });
 }
@@ -293,7 +498,6 @@ let heartbeatTimer = null;
 function parseTime(dateStr, timeStr) {
   if (!dateStr || !timeStr) return null;
   const t = timeStr.trim();
-  // Handle "2:00 PM" format
   const m12 = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (m12) {
     let h = parseInt(m12[1], 10);
@@ -302,7 +506,6 @@ function parseTime(dateStr, timeStr) {
     if (m12[3].toUpperCase() === "AM" && h === 12) h = 0;
     return new Date(`${dateStr}T${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}:00`);
   }
-  // Handle "14:00" format
   const m24 = t.match(/^(\d{1,2}):(\d{2})$/);
   if (m24) {
     return new Date(`${dateStr}T${t}:00`);
@@ -315,7 +518,6 @@ function findCurrentSession(sessions) {
   const now = new Date();
   const todayStr = now.toISOString().split("T")[0];
 
-  // Filter today's sessions and sort by start time
   const today = sessions
     .filter(s => (s.date || "") === todayStr)
     .map(s => {
@@ -327,15 +529,11 @@ function findCurrentSession(sessions) {
 
   if (!today.length) return null;
 
-  // Find the session that's currently running (started but next hasn't started yet)
   for (let i = 0; i < today.length; i++) {
     const s = today[i];
     const nextStart = today[i + 1] ? today[i + 1]._startDt : null;
-
     if (now >= s._startDt) {
-      if (!nextStart || now < nextStart) {
-        return s;
-      }
+      if (!nextStart || now < nextStart) return s;
     }
   }
   return null;
@@ -355,11 +553,9 @@ async function pollRoomAgent() {
     const current = findCurrentSession(data.sessions);
 
     if (current && (!STATE.currentSession || STATE.currentSession.id !== current.id)) {
-      // New session detected — start recording
       if (STATE.recording) {
         log("SESSION CHANGED — stopping previous recording");
         try { await obsStopRecord(); } catch (e) { log("STOP ERROR", e.message); }
-        // Small delay for OBS to finalize
         await new Promise(r => setTimeout(r, 2000));
       }
 
@@ -377,7 +573,7 @@ async function pollRoomAgent() {
       if (STATE.obsConnected) {
         try {
           await obsSwitchScene(cfg.pipSceneName);
-          await obsUpdateLowerThird(current.title, current.presenter);
+          await obsShowLowerThird(current.title, current.presenter);
           await obsStartRecord();
         } catch (e) {
           log("AUTO-START ERROR", e.message);
@@ -385,7 +581,6 @@ async function pollRoomAgent() {
         }
       }
     } else if (!current && STATE.currentSession && STATE.recording) {
-      // Session ended — stop recording
       log("SESSION ENDED — stopping recording");
       try { await obsStopRecord(); } catch (e) { log("STOP ERROR", e.message); }
       STATE.currentSession = null;
@@ -436,7 +631,7 @@ async function getRecordingsList() {
           size: stat.size,
           sizeHuman: formatBytes(stat.size),
           created: stat.birthtime || stat.mtime,
-          duration: null, // Would need ffprobe
+          duration: null,
         });
       }
     }
@@ -463,7 +658,7 @@ function startServer() {
   app.use(express.json());
   app.use(express.static(PUBLIC_DIR));
 
-  // ── Dashboard ──
+  // ── Pages ──
   app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "dashboard.html")));
   app.get("/setup", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "setup.html")));
 
@@ -491,7 +686,6 @@ function startServer() {
   // ── API: Config ──
   app.get("/api/config", (_req, res) => {
     const cfg = readConfig();
-    // Mask password
     const safe = { ...cfg };
     if (safe.obsPassword) safe.obsPassword = "****";
     res.json({ ok: true, config: safe });
@@ -528,7 +722,7 @@ function startServer() {
 
       if (STATE.obsConnected) {
         await obsSwitchScene(cfg.pipSceneName);
-        await obsUpdateLowerThird(STATE.currentSession.title, STATE.currentSession.presenter);
+        await obsShowLowerThird(STATE.currentSession.title, STATE.currentSession.presenter);
       }
       await obsStartRecord();
 
@@ -554,6 +748,59 @@ function startServer() {
     }
   });
 
+  // ── API: Remote Trigger (called by room PC / RoomAgent) ──
+  //
+  //   POST /api/trigger  { "action": "start", "title": "...", "presenter": "...", "room": "..." }
+  //   POST /api/trigger  { "action": "stop" }
+  //
+  app.post("/api/trigger", async (req, res) => {
+    try {
+      const { action, sessionId, title, presenter, room, date, start } = req.body || {};
+      const cfg = readConfig();
+
+      if (action === "start") {
+        if (STATE.recording) {
+          log("TRIGGER: stopping previous recording before new session");
+          try { await obsStopRecord(); } catch {}
+          await new Promise(r => setTimeout(r, 1500));
+        }
+
+        STATE.currentSession = {
+          id: sessionId || "trigger_" + Date.now(),
+          title: title || "Session",
+          presenter: presenter || "",
+          room: room || cfg.room || "",
+          date: date || new Date().toISOString().split("T")[0],
+          start: start || new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+          startedAt: Date.now(),
+        };
+
+        if (STATE.obsConnected) {
+          await obsSwitchScene(cfg.pipSceneName);
+          await obsShowLowerThird(STATE.currentSession.title, STATE.currentSession.presenter);
+        }
+        await obsStartRecord();
+
+        log("TRIGGER START", STATE.currentSession.title, "— by", presenter || "unknown");
+        res.json({ ok: true, session: STATE.currentSession });
+
+      } else if (action === "stop") {
+        const outputPath = await obsStopRecord();
+        const session = STATE.currentSession;
+        STATE.currentSession = null;
+        log("TRIGGER STOP");
+        res.json({ ok: true, outputPath, session });
+
+      } else {
+        res.status(400).json({ ok: false, error: 'action must be "start" or "stop"' });
+      }
+    } catch (e) {
+      log("TRIGGER ERROR", e.message);
+      addError("Trigger error: " + e.message);
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
   // ── API: Recordings ──
   app.get("/api/recordings", async (_req, res) => {
     try {
@@ -575,6 +822,91 @@ function startServer() {
     }
   });
 
+  // ── API: Detect monitors and cameras from OBS ──
+  app.get("/api/obs/sources", async (_req, res) => {
+    if (!obs || !STATE.obsConnected)
+      return res.json({ ok: false, error: "OBS not connected" });
+
+    const result = { cameras: [], monitors: [] };
+
+    // Monitors — GetMonitorList added in OBS 29+
+    try {
+      const { monitors } = await obs.call("GetMonitorList");
+      result.monitors = monitors.map(m => ({
+        id: m.monitorIndex,
+        name: m.monitorName || `Monitor ${m.monitorIndex + 1}`,
+        width: m.monitorWidth,
+        height: m.monitorHeight,
+      }));
+    } catch {
+      // OBS < 29 fallback — provide numbered options
+      result.monitors = [
+        { id: 0, name: "Monitor 1 (Primary)" },
+        { id: 1, name: "Monitor 2" },
+        { id: 2, name: "Monitor 3" },
+      ];
+    }
+
+    // Cameras — enumerate DirectShow devices via a temporary dshow_input probe
+    const PROBE = "__rh_cam_probe__";
+    let probeCreated = false;
+    let queryName = null;
+
+    try {
+      // Prefer an already-existing dshow_input so we don't create temp sources
+      const { inputs } = await obs.call("GetInputList", { inputKind: "dshow_input" });
+      const existing = (inputs || []).find(i => i.inputName !== PROBE);
+      if (existing) queryName = existing.inputName;
+    } catch {}
+
+    if (!queryName) {
+      try {
+        const { currentProgramSceneName } = await obs.call("GetCurrentProgramScene");
+        await obs.call("CreateInput", {
+          sceneName: currentProgramSceneName,
+          inputName: PROBE,
+          inputKind: "dshow_input",
+          inputSettings: {},
+          sceneItemEnabled: false,
+        });
+        queryName = PROBE;
+        probeCreated = true;
+        // Give DirectShow a moment to enumerate devices
+        await new Promise(r => setTimeout(r, 600));
+      } catch {}
+    }
+
+    if (queryName) {
+      try {
+        const { propertyItems } = await obs.call("GetInputPropertiesListPropertyItems", {
+          inputName: queryName,
+          propertyName: "video_device_id",
+        });
+        result.cameras = (propertyItems || []).map(p => ({
+          id: p.itemValue,
+          name: p.itemName,
+        }));
+      } catch {}
+      if (probeCreated) {
+        try { await obs.call("RemoveInput", { inputName: PROBE }); } catch {}
+      }
+    }
+
+    res.json({ ok: true, ...result });
+  });
+
+  // ── API: Build OBS scenes ──
+  app.post("/api/obs/setup-scenes", async (_req, res) => {
+    try {
+      const result = await obsSetupScenes();
+      res.json({ ok: true, ...result });
+    } catch (e) {
+      log("SETUP SCENES ERROR", e.message);
+      addError("Scene setup failed: " + e.message);
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
   app.post("/api/obs/reconnect", async (_req, res) => {
     try {
       if (obs) { try { obs.disconnect(); } catch {} }
@@ -590,20 +922,16 @@ function startServer() {
     log("SERVER RUNNING ON PORT", cfg.port);
     log("Dashboard: http://localhost:" + cfg.port);
     log("Setup:     http://localhost:" + cfg.port + "/setup");
+    log("Trigger:   POST http://localhost:" + cfg.port + "/api/trigger");
   });
 
-  // Connect to OBS
   connectObs();
 
-  // Start polling RoomAgent
   pollTimer = setInterval(pollRoomAgent, cfg.pollMs);
   log("POLLING ROOMAGENT every", cfg.pollMs + "ms at", cfg.roomAgentBase);
 
-  // Start heartbeat
   heartbeatTimer = setInterval(sendHeartbeat, cfg.heartbeatMs);
-  setTimeout(sendHeartbeat, 2000); // Initial heartbeat
-
-  // Initial poll
+  setTimeout(sendHeartbeat, 2000);
   setTimeout(pollRoomAgent, 3000);
 }
 
