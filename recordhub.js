@@ -551,30 +551,31 @@ function parseTime(dateStr, timeStr) {
   return null;
 }
 
+// Returns { session, nextStart } — nextStart is the Date the next session begins,
+// or null if this is the last session of the day.
 function findCurrentSession(sessions) {
-  if (!sessions || !sessions.length) return null;
+  if (!sessions || !sessions.length) return { session: null, nextStart: null };
   const now = new Date();
   const todayStr = now.toISOString().split("T")[0];
 
   const today = sessions
     .filter(s => (s.date || "") === todayStr)
-    .map(s => {
-      const startDt = parseTime(s.date, s.start);
-      return { ...s, _startDt: startDt };
-    })
+    .map(s => ({ ...s, _startDt: parseTime(s.date, s.start) }))
     .filter(s => s._startDt)
     .sort((a, b) => a._startDt - b._startDt);
 
-  if (!today.length) return null;
+  if (!today.length) return { session: null, nextStart: null };
 
   for (let i = 0; i < today.length; i++) {
     const s = today[i];
     const nextStart = today[i + 1] ? today[i + 1]._startDt : null;
     if (now >= s._startDt) {
-      if (!nextStart || now < nextStart) return s;
+      if (!nextStart || now < nextStart) {
+        return { session: s, nextStart };
+      }
     }
   }
-  return null;
+  return { session: null, nextStart: null };
 }
 
 async function pollRoomAgent() {
@@ -588,11 +589,12 @@ async function pollRoomAgent() {
 
     if (!data.ok || !data.sessions) return;
 
-    const current = findCurrentSession(data.sessions);
+    const { session: current, nextStart } = findCurrentSession(data.sessions);
 
     if (current && (!STATE.currentSession || STATE.currentSession.id !== current.id)) {
       if (STATE.recording) {
         log("SESSION CHANGED — stopping previous recording");
+        cancelAutoStop();
         try { await obsStopRecord(); } catch (e) { log("STOP ERROR", e.message); }
         await new Promise(r => setTimeout(r, 2000));
       }
@@ -613,7 +615,24 @@ async function pollRoomAgent() {
           await obsSwitchScene(cfg.pipSceneName);
           await obsShowLowerThird(current.title, current.presenter);
           await obsStartRecord();
-          scheduleAutoStop(cfg.sessionDurationMins);
+
+          // Stop precisely when next session begins; fall back to fixed duration
+          if (nextStart) {
+            const msUntil = nextStart - Date.now();
+            if (msUntil > 0) {
+              cancelAutoStop();
+              autoStopTimer = setTimeout(async () => {
+                if (!STATE.recording) return;
+                log("AUTO-STOP: next session starting at", nextStart.toLocaleTimeString());
+                try { await obsStopRecord(); } catch (e) { log("AUTO-STOP ERROR", e.message); }
+                STATE.currentSession = null;
+              }, msUntil);
+              log("AUTO-STOP scheduled at", nextStart.toLocaleTimeString(), `(${Math.round(msUntil / 60000)} min)`);
+            }
+          } else {
+            // Last session of the day — use configured max duration
+            scheduleAutoStop(cfg.sessionDurationMins);
+          }
         } catch (e) {
           log("AUTO-START ERROR", e.message);
           addError("Auto-start recording failed: " + e.message);
