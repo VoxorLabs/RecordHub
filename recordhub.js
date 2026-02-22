@@ -986,6 +986,113 @@ function startServer() {
     }
   });
 
+  // ── API: Network Info (LAN IP self-announcement) ──
+  app.get("/api/network-info", (_req, res) => {
+    const cfg = readConfig();
+    const ifaces = os.networkInterfaces();
+    const ips = [];
+    for (const list of Object.values(ifaces)) {
+      for (const addr of list) {
+        if (addr.family === "IPv4" && !addr.internal) ips.push(addr.address);
+      }
+    }
+    const recommended =
+      ips.find(ip => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip)) ||
+      ips[0] || "localhost";
+    const port = cfg.port || 3299;
+    res.json({ ok: true, ips, recommended, port, url: `http://${recommended}:${port}` });
+  });
+
+  // ── API: Health Check ──
+  app.get("/api/health", async (_req, res) => {
+    const cfg = readConfig();
+    const checks = [];
+
+    // OBS connection
+    checks.push({
+      key: "obs", label: "OBS Studio", ok: STATE.obsConnected,
+      detail: STATE.obsConnected
+        ? `Connected — OBS ${STATE.obsVersion || ""}`
+        : "Not connected — check WebSocket URL and password",
+      action: STATE.obsConnected ? null : "test-obs",
+    });
+
+    // Scene + sources
+    let sceneNames = [];
+    if (STATE.obsConnected) {
+      try {
+        const { sceneItems } = await obs.call("GetSceneItemList", { sceneName: cfg.pipSceneName });
+        sceneNames = sceneItems.map(i => i.sourceName);
+      } catch {}
+    }
+    const sceneOk = sceneNames.length > 0;
+
+    checks.push({
+      key: "scene", label: "Recording Scene", ok: sceneOk,
+      detail: sceneOk
+        ? `"${cfg.pipSceneName}" — ${sceneNames.length} sources`
+        : `Scene "${cfg.pipSceneName}" not found — click Build OBS Scenes`,
+      action: sceneOk ? null : "build-scene",
+    });
+
+    const slidesOk = sceneNames.includes("Slides");
+    checks.push({
+      key: "slides", label: "Slides Source", ok: slidesOk,
+      detail: slidesOk
+        ? (cfg.slidesUrl ? `Browser: ${cfg.slidesUrl}` : `Monitor ${cfg.slidesMonitor ?? 0}`)
+        : "Not in scene — rebuild",
+      action: slidesOk ? null : "build-scene",
+    });
+
+    const camOk = sceneNames.includes("Presenter Cam");
+    checks.push({
+      key: "camera", label: "Presenter Cam", ok: camOk,
+      detail: camOk ? (cfg.cameraDevice || "Camera detected") : "Not in scene — rebuild",
+      action: camOk ? null : "build-scene",
+    });
+
+    const ltOk = sceneNames.includes(cfg.titleSourceName);
+    checks.push({
+      key: "lower-third", label: "Lower Third", ok: ltOk,
+      detail: ltOk ? "Ready — hidden until session starts" : "Not in scene — rebuild",
+      action: ltOk ? null : "build-scene",
+    });
+
+    // RoomAgent
+    let raOk = false;
+    let raDetail = cfg.roomAgentBase ? "Checking…" : "Not configured";
+    if (cfg.roomAgentBase) {
+      try {
+        const r = await fetch(cfg.roomAgentBase + "/api/kiosk-data",
+          { signal: AbortSignal.timeout(3000) });
+        if (r.ok) {
+          const d = await r.json();
+          raOk = true;
+          raDetail = `Connected — ${d.sessions?.length ?? 0} sessions`;
+        } else {
+          raDetail = `HTTP ${r.status}`;
+        }
+      } catch (e) {
+        raDetail = `Unreachable (${e.message.split(":")[0]})`;
+      }
+    }
+    checks.push({ key: "roomagent", label: "RoomAgent", ok: raOk, detail: raDetail });
+
+    res.json({ ok: true, checks, obsConnected: STATE.obsConnected, sceneBuilt: sceneOk });
+  });
+
+  // ── API: Test Lower Third ──
+  app.post("/api/obs/test-lower-third", async (_req, res) => {
+    try {
+      if (!obs || !STATE.obsConnected) return res.json({ ok: false, error: "OBS not connected" });
+      const timeStr = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+      await obsShowLowerThird("Sample Session Title", "Presenter Name", timeStr);
+      res.json({ ok: true });
+    } catch (e) {
+      res.json({ ok: false, error: e.message });
+    }
+  });
+
   // ── Start ──
   app.listen(cfg.port, () => {
     log("SERVER RUNNING ON PORT", cfg.port);
