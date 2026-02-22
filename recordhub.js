@@ -204,8 +204,8 @@ async function obsSwitchScene(sceneName) {
 // ─── Lower Third (show on session start, fade out after 10 s) ───
 let lowerThirdFadeTimer = null;
 
-async function obsShowLowerThird(title, presenter, startTime) {
-  if (!obs || !STATE.obsConnected) return;
+async function obsShowLowerThird(title, presenter, startTime, durationMs = 10_000) {
+  if (!obs || !STATE.obsConnected) { log("LOWER THIRD SKIP: OBS not connected"); return; }
   const cfg = readConfig();
 
   if (lowerThirdFadeTimer) {
@@ -217,6 +217,7 @@ async function obsShowLowerThird(title, presenter, startTime) {
   const text = parts.join("  ·  ");
 
   const SCENE = cfg.pipSceneName;
+  log("LOWER THIRD: scene=", SCENE, "source=", cfg.titleSourceName, "text=", text);
 
   try {
     // Update text content.
@@ -226,6 +227,7 @@ async function obsShowLowerThird(title, presenter, startTime) {
         inputName: cfg.titleSourceName,
         inputSettings: { text },
       });
+      log("LOWER THIRD: text set OK");
     } catch (e) {
       if (/not found|no source/i.test(e.message || "")) {
         log("LOWER THIRD: source missing — running scene auto-setup");
@@ -235,6 +237,7 @@ async function obsShowLowerThird(title, presenter, startTime) {
           inputName: cfg.titleSourceName,
           inputSettings: { text },
         });
+        log("LOWER THIRD: text set OK (after auto-setup)");
       } else {
         throw e;
       }
@@ -248,13 +251,16 @@ async function obsShowLowerThird(title, presenter, startTime) {
       try {
         const { sceneItemId } = await obs.call("GetSceneItemId", { sceneName: SCENE, sourceName: srcName });
         await obs.call("SetSceneItemEnabled", { sceneName: SCENE, sceneItemId, sceneItemEnabled: true });
-      } catch {}
+        log("LOWER THIRD: enabled", srcName, "sceneItemId=" + sceneItemId);
+      } catch (e) {
+        log("LOWER THIRD: FAILED to enable", srcName, "—", e.message);
+      }
     }
 
-    log("LOWER THIRD SHOWN", text);
+    log("LOWER THIRD SHOWN for", durationMs / 1000 + "s —", text);
 
-    // Schedule fade-out after 10 seconds
-    lowerThirdFadeTimer = setTimeout(() => fadeOutLowerThird(cfg), 10_000);
+    // Schedule fade-out
+    lowerThirdFadeTimer = setTimeout(() => fadeOutLowerThird(cfg), durationMs);
   } catch (e) {
     log("LOWER THIRD SHOW SKIP", e.message);
   }
@@ -375,29 +381,34 @@ async function obsSetupScenes() {
   const warnings = [];
 
   // ── 2. Slides ──
-  let slidesKind, slidesSettings;
-  if (cfg.slidesUrl && hasBrowser) {
-    slidesKind = "browser_source";
-    slidesSettings = {
-      url: cfg.slidesUrl,
-      width: W, height: H, fps: 30,
-      css: "body{margin:0;overflow:hidden;background:transparent}",
-      reroute_audio: false, shutdown: false, restart_when_active: false,
-    };
-  } else {
-    if (cfg.slidesUrl && !hasBrowser) {
+  // Only create the software Slides source if a slidesUrl is configured.
+  // Users feeding slides via a hardware capture card (HDMI from RoomPC) manage
+  // that source themselves — Build Scene should not touch or recreate it.
+  if (cfg.slidesUrl) {
+    let slidesKind, slidesSettings;
+    if (hasBrowser) {
+      slidesKind = "browser_source";
+      slidesSettings = {
+        url: cfg.slidesUrl,
+        width: W, height: H, fps: 30,
+        css: "body{margin:0;overflow:hidden;background:transparent}",
+        reroute_audio: false, shutdown: false, restart_when_active: false,
+      };
+    } else {
       warnings.push("browser_source not found in OBS — using monitor capture. Install obs-browser to use the kiosk URL.");
+      slidesKind = "monitor_capture";
+      slidesSettings = { monitor: cfg.slidesMonitor ?? 0 };
     }
-    slidesKind = "monitor_capture";
-    slidesSettings = { monitor: cfg.slidesMonitor ?? 0 };
+    const slidesId = await upsertInput(SLIDES, slidesKind, slidesSettings, true);
+    await obs.call("SetSceneItemTransform", {
+      sceneName: SCENE, sceneItemId: slidesId,
+      sceneItemTransform: { positionX: 0, positionY: 0, alignment: 5,
+        boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: W, boundsHeight: H },
+    });
+    log("OBS SETUP: slides →", slidesKind, cfg.slidesUrl);
+  } else {
+    log("OBS SETUP: skipping Slides source — no slidesUrl configured (capture card in use)");
   }
-  const slidesId = await upsertInput(SLIDES, slidesKind, slidesSettings, true);
-  await obs.call("SetSceneItemTransform", {
-    sceneName: SCENE, sceneItemId: slidesId,
-    sceneItemTransform: { positionX: 0, positionY: 0, alignment: 5,
-      boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: W, boundsHeight: H },
-  });
-  log("OBS SETUP: slides →", slidesKind, cfg.slidesUrl || `monitor ${cfg.slidesMonitor ?? 0}`);
 
   // ── 3. Presenter Cam PiP ──
   try {
@@ -1111,7 +1122,7 @@ function startServer() {
     try {
       if (!obs || !STATE.obsConnected) return res.json({ ok: false, error: "OBS not connected" });
       const timeStr = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-      await obsShowLowerThird("Sample Session Title", "Presenter Name", timeStr);
+      await obsShowLowerThird("Sample Session Title", "Presenter Name", timeStr, 30_000);
       res.json({ ok: true });
     } catch (e) {
       res.json({ ok: false, error: e.message });
