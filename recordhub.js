@@ -40,6 +40,7 @@ const DEFAULTS = {
 const LT_BG   = "Lower Third BG";
 const LT_TEXT = "Lower Third";
 
+
 // ─── State ───────────────────────────────────────────────────────────────────
 const STATE = {
   obsConnected: false,
@@ -138,10 +139,42 @@ async function connectObs() {
 
 async function obsStartRecord() {
   if (!obs || !STATE.obsConnected) throw new Error("OBS not connected");
-  await obs.call("StartRecord");
+  // Register listener BEFORE calling StartRecord to avoid the race condition
+  // where RecordStateChanged fires before we're listening.
+  await new Promise((resolve, reject) => {
+    let done = false;
+
+    const timeout = setTimeout(() => {
+      if (done) return;
+      done = true;
+      obs.off("RecordStateChanged", handler);
+      reject(new Error("Recording start confirmation timed out (5 s) — check OBS"));
+    }, 5000);
+
+    function handler(data) {
+      if (done) return;
+      if (data.outputState === "OBS_WEBSOCKET_OUTPUT_STARTED") {
+        done = true;
+        clearTimeout(timeout);
+        obs.off("RecordStateChanged", handler);
+        resolve();
+      }
+    }
+
+    obs.on("RecordStateChanged", handler);
+
+    obs.call("StartRecord").catch(err => {
+      if (done) return;
+      done = true;
+      clearTimeout(timeout);
+      obs.off("RecordStateChanged", handler);
+      reject(err);
+    });
+  });
+
   STATE.recording = true;
   STATE.recordingStartedAt = Date.now();
-  log("RECORDING STARTED");
+  log("RECORDING STARTED (confirmed via RecordStateChanged)");
 }
 
 async function obsStopRecord() {
@@ -607,7 +640,7 @@ function startServer() {
         await obsStartRecord();
         scheduleAutoStop();
         log("TRIGGER START", STATE.currentSession.title, "— by", presenter || "unknown");
-        res.json({ ok: true, session: STATE.currentSession });
+        res.json({ ok: true, recording: true, session: STATE.currentSession });
 
       } else if (action === "stop") {
         cancelAutoStop();
