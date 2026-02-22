@@ -53,8 +53,8 @@ const STATE = {
   obsConnected: false,
   obsVersion: null,
   recording: false,
-  currentSession: null,        // { id, title, presenter, room, date, start, startedAt }
-  lastStoppedSessionId: null,  // prevents poll from restarting a session that was manually stopped
+  currentSession: null,   // { id, title, presenter, room, date, start, startedAt }
+  polledSession: null,    // latest session info from RoomAgent poll (info only, never starts recording)
   lastPollAt: null,
   lastHeartbeatAt: null,
   totalRecordings: 0,
@@ -288,46 +288,38 @@ async function obsSetupScenes() {
   const cfg = readConfig();
 
   const SCENE   = cfg.pipSceneName;
-  const W       = cfg.canvasWidth  || 1920;
-  const H       = cfg.canvasHeight || 1080;
-  const SLIDES  = "Slides";
-  const CAM     = "Presenter Cam";
   const LT_BG   = "Lower Third BG";
   const LT_TEXT = cfg.titleSourceName;
 
-  const PIP_W = 320, PIP_H = 180, PIP_PAD = 24;
-  const PIP_X = W - PIP_W - PIP_PAD;
-  const PIP_Y = H - PIP_H - PIP_PAD;
-  const LT_H  = 90;
-  const LT_Y  = H - LT_H - 10;
+  // Read actual OBS canvas size — do not use config defaults which may differ from OBS settings.
+  // If OBS is 1280×720 and we use 1920×1080, the lower third would be positioned at Y=980,
+  // which is completely off-screen on a 720-high canvas.
+  let W = cfg.canvasWidth  || 1920;
+  let H = cfg.canvasHeight || 1080;
+  try {
+    const vs = await obs.call("GetVideoSettings");
+    W = vs.baseWidth  || W;
+    H = vs.baseHeight || H;
+    log("OBS SETUP: canvas from OBS →", W + "×" + H);
+  } catch (e) {
+    log("OBS SETUP: GetVideoSettings failed, using config defaults →", W + "×" + H, "—", e.message);
+  }
 
-  // ── Detect what OBS actually has installed ──
+  const LT_H = 90;
+  const LT_Y = H - LT_H - 10;
+
+  // Detect installed source kinds (only need color + text for lower third)
   let kinds = new Set();
   try {
     const { inputKinds } = await obs.call("GetInputKindList", { unversioned: false });
     kinds = new Set(inputKinds);
-    log("OBS SETUP: available kinds →", [...kinds].join(", "));
   } catch (e) {
     log("OBS SETUP: could not get input kinds —", e.message);
   }
-
   const pick = (...candidates) => candidates.find(k => kinds.has(k)) || candidates[0];
-
-  const colorKind  = pick("color_source_v3", "color_source_v2", "color_source");
-  const textKind   = pick("text_gdiplus", "text_ft2_source", "text_gdiplus_v2");
-  const camKind    = pick("dshow_input", "av_capture_input_v2", "av_capture_input", "v4l2_input");
-  const hasBrowser = kinds.size === 0 || kinds.has("browser_source"); // assume available if list empty
-
-  // Detect available filter kinds
-  let filterKinds = new Set();
-  try {
-    const fk = await obs.call("GetSourceFilterKindList");
-    filterKinds = new Set(fk.sourceFilterKinds || []);
-  } catch {}
-  const fadeFilterKind = (filterKinds.size === 0 || filterKinds.has("color_filter_v2"))
-    ? "color_filter_v2" : "color_filter";
-
-  log("OBS SETUP: using →", { colorKind, textKind, camKind, hasBrowser, fadeFilterKind });
+  const colorKind = pick("color_source_v3", "color_source_v2", "color_source");
+  const textKind  = pick("text_gdiplus_v2", "text_gdiplus", "text_ft2_source");
+  log("OBS SETUP: canvas=" + W + "×" + H + " colorKind=" + colorKind + " textKind=" + textKind);
 
   // ── helpers ──
 
@@ -360,16 +352,6 @@ async function obsSetupScenes() {
     }
   }
 
-  async function addFadeFilter(srcName) {
-    try { await obs.call("RemoveSourceFilter", { sourceName: srcName, filterName: "Fade" }); } catch {}
-    await obs.call("CreateSourceFilter", {
-      sourceName: srcName,
-      filterName: "Fade",
-      filterKind: fadeFilterKind,
-      filterSettings: { opacity: 0.0 },
-    });
-  }
-
   // ── 1. Create scene if it doesn't exist (idempotent) ──
   try {
     await obs.call("CreateScene", { sceneName: SCENE });
@@ -380,55 +362,11 @@ async function obsSetupScenes() {
 
   const warnings = [];
 
-  // ── 2. Slides ──
-  // Only create the software Slides source if a slidesUrl is configured.
-  // Users feeding slides via a hardware capture card (HDMI from RoomPC) manage
-  // that source themselves — Build Scene should not touch or recreate it.
-  let slidesKind = null;
-  if (cfg.slidesUrl) {
-    let slidesSettings;
-    if (hasBrowser) {
-      slidesKind = "browser_source";
-      slidesSettings = {
-        url: cfg.slidesUrl,
-        width: W, height: H, fps: 30,
-        css: "body{margin:0;overflow:hidden;background:transparent}",
-        reroute_audio: false, shutdown: false, restart_when_active: false,
-      };
-    } else {
-      warnings.push("browser_source not found in OBS — using monitor capture. Install obs-browser to use the kiosk URL.");
-      slidesKind = "monitor_capture";
-      slidesSettings = { monitor: cfg.slidesMonitor ?? 0 };
-    }
-    const slidesId = await upsertInput(SLIDES, slidesKind, slidesSettings, true);
-    await obs.call("SetSceneItemTransform", {
-      sceneName: SCENE, sceneItemId: slidesId,
-      sceneItemTransform: { positionX: 0, positionY: 0, alignment: 5,
-        boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: W, boundsHeight: H },
-    });
-    log("OBS SETUP: slides →", slidesKind, cfg.slidesUrl);
-  } else {
-    log("OBS SETUP: skipping Slides source — no slidesUrl configured (capture card in use)");
-  }
+  // Build Scene ONLY manages the Lower Third overlay sources.
+  // Slides (capture card) and camera are set up by the user in OBS — we never touch them.
 
-  // ── 3. Presenter Cam PiP ──
-  try {
-    const camSettings = {};
-    if (cfg.cameraDevice) camSettings.video_device_id = cfg.cameraDevice;
-    const camId = await upsertInput(CAM, camKind, camSettings, true);
-    await obs.call("SetSceneItemTransform", {
-      sceneName: SCENE, sceneItemId: camId,
-      sceneItemTransform: { positionX: PIP_X, positionY: PIP_Y, alignment: 5,
-        boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: PIP_W, boundsHeight: PIP_H },
-    });
-    log("OBS SETUP: camera PiP →", camKind, `${PIP_W}×${PIP_H} at (${PIP_X},${PIP_Y})`);
-  } catch (e) {
-    warnings.push("Camera source skipped: " + e.message + " — connect camera and re-run setup.");
-    log("OBS SETUP: camera skip —", e.message);
-  }
-
-  // ── 4. Lower Third BG ──
-  const ltBgId = await upsertInput(LT_BG, colorKind, { color: 3422552064 }, false);
+  // ── 2. Lower Third BG ──
+  const ltBgId = await upsertInput(LT_BG, colorKind, { color: 0xFF1A237E }, false);
   await obs.call("SetSceneItemTransform", {
     sceneName: SCENE, sceneItemId: ltBgId,
     sceneItemTransform: { positionX: 0, positionY: LT_Y, alignment: 5,
@@ -473,9 +411,9 @@ async function obsSetupScenes() {
     log("OBS SETUP: z-order check failed —", e.message);
   }
 
-  log("OBS SETUP: complete —", SCENE, "ready");
+  log("OBS SETUP: complete —", SCENE, "ready — lower third sources positioned at Y=" + LT_Y);
   if (warnings.length) warnings.forEach(w => log("OBS SETUP WARNING:", w));
-  return { scene: SCENE, slidesKind, camKind, colorKind, textKind, fadeFilterKind, warnings };
+  return { scene: SCENE, colorKind, textKind, canvasW: W, canvasH: H, warnings };
 }
 
 // ─── Recording File Management ───
@@ -613,7 +551,6 @@ function findCurrentSession(sessions) {
 async function pollRoomAgent() {
   const cfg = readConfig();
 
-  // Skip polling if roomAgentBase is the install placeholder
   if (!cfg.roomAgentBase || /10\.0\.0\.X/i.test(cfg.roomAgentBase)) {
     if (cfg.verbose) log("POLL SKIP: roomAgentBase not configured — set it in /setup");
     return;
@@ -628,65 +565,14 @@ async function pollRoomAgent() {
 
     if (!data.ok || !data.sessions) return;
 
-    const { session: current, nextStart } = findCurrentSession(data.sessions);
+    // Poll is INFORMATION ONLY — it never starts or stops recordings.
+    // Recording is controlled exclusively by POST /api/trigger from the RoomPC kiosk.
+    const { session: current } = findCurrentSession(data.sessions);
+    STATE.polledSession = current
+      ? { id: current.id, title: current.title, presenter: current.presenter,
+          room: current.room || cfg.room, date: current.date, start: current.start }
+      : null;
 
-    // When session time passes, reset the manual-stop guard so the next session can auto-start.
-    if (!current) STATE.lastStoppedSessionId = null;
-
-    if (current && (!STATE.currentSession || STATE.currentSession.id !== current.id)
-        && current.id !== STATE.lastStoppedSessionId) {
-      if (STATE.recording) {
-        log("SESSION CHANGED — stopping previous recording");
-        cancelAutoStop();
-        try { await obsStopRecord(); } catch (e) { log("STOP ERROR", e.message); }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-
-      STATE.currentSession = {
-        id: current.id,
-        sessionId: current.sessionId,
-        title: current.title,
-        presenter: current.presenter,
-        room: current.room || cfg.room,
-        date: current.date,
-        start: current.start,
-        startedAt: Date.now(),
-      };
-
-      if (STATE.obsConnected) {
-        try {
-          await obsSwitchScene(cfg.pipSceneName);
-          await obsShowLowerThird(current.title, current.presenter, current.start);
-          await obsStartRecord();
-
-          // Stop precisely when next session begins; fall back to fixed duration
-          if (nextStart) {
-            const msUntil = nextStart - Date.now();
-            if (msUntil > 0) {
-              cancelAutoStop();
-              autoStopTimer = setTimeout(async () => {
-                if (!STATE.recording) return;
-                log("AUTO-STOP: next session starting at", nextStart.toLocaleTimeString());
-                try { await obsStopRecord(); } catch (e) { log("AUTO-STOP ERROR", e.message); }
-                STATE.currentSession = null;
-              }, msUntil);
-              log("AUTO-STOP scheduled at", nextStart.toLocaleTimeString(), `(${Math.round(msUntil / 60000)} min)`);
-            }
-          } else {
-            // Last session of the day — use configured max duration
-            scheduleAutoStop(cfg.sessionDurationMins);
-          }
-        } catch (e) {
-          log("AUTO-START ERROR", e.message);
-          addError("Auto-start recording failed: " + e.message);
-        }
-      }
-    } else if (!current && STATE.currentSession && STATE.recording) {
-      log("SESSION ENDED — stopping recording");
-      cancelAutoStop();
-      try { await obsStopRecord(); } catch (e) { log("STOP ERROR", e.message); }
-      STATE.currentSession = null;
-    }
   } catch (e) {
     if (cfg.verbose) log("POLL ERROR", cfg.roomAgentBase, "—", e.message);
   }
@@ -846,7 +732,6 @@ function startServer() {
       cancelAutoStop();
       const outputPath = await obsStopRecord();
       const session = STATE.currentSession;
-      STATE.lastStoppedSessionId = session?.id || null;
       STATE.currentSession = null;
       log("MANUAL STOP");
       res.json({ ok: true, outputPath, session });
@@ -897,7 +782,6 @@ function startServer() {
         cancelAutoStop();
         const outputPath = await obsStopRecord();
         const session = STATE.currentSession;
-        STATE.lastStoppedSessionId = session?.id || null;
         STATE.currentSession = null;
         log("TRIGGER STOP");
         res.json({ ok: true, outputPath, session });
@@ -1075,22 +959,6 @@ function startServer() {
         ? `"${cfg.pipSceneName}" — ${sceneNames.length} sources`
         : `Scene "${cfg.pipSceneName}" not found — click Build OBS Scenes`,
       action: sceneOk ? null : "build-scene",
-    });
-
-    const slidesOk = sceneNames.includes("Slides");
-    checks.push({
-      key: "slides", label: "Slides Source", ok: slidesOk,
-      detail: slidesOk
-        ? (cfg.slidesUrl ? `Browser: ${cfg.slidesUrl}` : `Monitor ${cfg.slidesMonitor ?? 0}`)
-        : "Not in scene — rebuild",
-      action: slidesOk ? null : "build-scene",
-    });
-
-    const camOk = sceneNames.includes("Presenter Cam");
-    checks.push({
-      key: "camera", label: "Presenter Cam", ok: camOk,
-      detail: camOk ? (cfg.cameraDevice || "Camera detected") : "Not in scene — rebuild",
-      action: camOk ? null : "build-scene",
     });
 
     const ltOk = sceneNames.includes(cfg.titleSourceName);
