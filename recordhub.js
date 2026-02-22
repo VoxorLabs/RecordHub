@@ -203,7 +203,7 @@ async function obsSwitchScene(sceneName) {
 // ─── Lower Third (show on session start, fade out after 10 s) ───
 let lowerThirdFadeTimer = null;
 
-async function obsShowLowerThird(title, presenter) {
+async function obsShowLowerThird(title, presenter, startTime) {
   if (!obs || !STATE.obsConnected) return;
   const cfg = readConfig();
 
@@ -212,7 +212,8 @@ async function obsShowLowerThird(title, presenter) {
     lowerThirdFadeTimer = null;
   }
 
-  const text = presenter ? `${presenter}  ·  ${title}` : (title || "");
+  const parts = [presenter, title, startTime].filter(Boolean);
+  const text = parts.join("  ·  ");
 
   try {
     // Update text content
@@ -221,8 +222,15 @@ async function obsShowLowerThird(title, presenter) {
       inputSettings: { text },
     });
 
-    // Reveal text source and background strip
+    // Reveal: enable scene items + set filter opacity to 1.0
+    const SCENE = cfg.pipSceneName;
     for (const srcName of [cfg.titleSourceName, "Lower Third BG"]) {
+      // Primary: scene item enable (always works)
+      try {
+        const { sceneItemId } = await obs.call("GetSceneItemId", { sceneName: SCENE, sourceName: srcName });
+        await obs.call("SetSceneItemEnabled", { sceneName: SCENE, sceneItemId, sceneItemEnabled: true });
+      } catch {}
+      // Secondary: filter opacity for fade-in effect
       try {
         await obs.call("SetSourceFilterSettings", {
           sourceName: srcName,
@@ -245,6 +253,8 @@ async function fadeOutLowerThird(cfg) {
   if (!obs || !STATE.obsConnected) return;
   lowerThirdFadeTimer = null;
 
+  const SCENE = cfg.pipSceneName;
+
   try {
     // Animate opacity 1.0 → 0.0 over ~1.5 s (10 steps × 150 ms)
     for (let i = 10; i >= 0; i--) {
@@ -263,6 +273,15 @@ async function fadeOutLowerThird(cfg) {
       ]);
       await new Promise(r => setTimeout(r, 150));
     }
+
+    // After fade: disable scene items so they are truly hidden
+    for (const srcName of [cfg.titleSourceName, "Lower Third BG"]) {
+      try {
+        const { sceneItemId } = await obs.call("GetSceneItemId", { sceneName: SCENE, sourceName: srcName });
+        await obs.call("SetSceneItemEnabled", { sceneName: SCENE, sceneItemId, sceneItemEnabled: false });
+      } catch {}
+    }
+
     log("LOWER THIRD FADED OUT");
   } catch (e) {
     log("LOWER THIRD FADE SKIP", e.message);
@@ -400,7 +419,7 @@ async function obsSetupScenes() {
   await removeInput(LT_BG);
   const ltBg = await obs.call("CreateInput", {
     sceneName: SCENE, inputName: LT_BG,
-    inputKind: colorKind, inputSettings: { color: 3422552064 }, sceneItemEnabled: true,
+    inputKind: colorKind, inputSettings: { color: 3422552064 }, sceneItemEnabled: false,
   });
   await obs.call("SetSceneItemTransform", {
     sceneName: SCENE, sceneItemId: ltBg.sceneItemId,
@@ -409,23 +428,23 @@ async function obsSetupScenes() {
   });
   await addFadeFilter(LT_BG);
 
-  // ── 5. Lower Third text ──
+  // ── 5. Lower Third text — font 40 px to fit presenter · title · time ──
   await removeInput(LT_TEXT);
   const ltText = await obs.call("CreateInput", {
     sceneName: SCENE, inputName: LT_TEXT,
     inputKind: textKind,
     inputSettings: {
       text: "",
-      font: { face: "Arial", size: 52, style: "Bold", flags: 0 },
+      font: { face: "Arial", size: 40, style: "Bold", flags: 0 },
       color: 4294967295, outline: true,
       outline_color: 4278190080, outline_size: 3,
       extents: true, extents_cx: W - 60, extents_cy: LT_H - 16, extents_wrap: false,
     },
-    sceneItemEnabled: true,
+    sceneItemEnabled: false,
   });
   await obs.call("SetSceneItemTransform", {
     sceneName: SCENE, sceneItemId: ltText.sceneItemId,
-    sceneItemTransform: { positionX: 30, positionY: LT_Y + 8, alignment: 5,
+    sceneItemTransform: { positionX: 30, positionY: LT_Y + 12, alignment: 5,
       boundsType: "OBS_BOUNDS_NONE" },
   });
   await addFadeFilter(LT_TEXT);
@@ -600,7 +619,7 @@ async function pollRoomAgent() {
       if (STATE.obsConnected) {
         try {
           await obsSwitchScene(cfg.pipSceneName);
-          await obsShowLowerThird(current.title, current.presenter);
+          await obsShowLowerThird(current.title, current.presenter, current.start);
           await obsStartRecord();
 
           // Stop precisely when next session begins; fall back to fixed duration
@@ -768,7 +787,7 @@ function startServer() {
 
       if (STATE.obsConnected) {
         await obsSwitchScene(cfg.pipSceneName);
-        await obsShowLowerThird(STATE.currentSession.title, STATE.currentSession.presenter);
+        await obsShowLowerThird(STATE.currentSession.title, STATE.currentSession.presenter, STATE.currentSession.start);
       }
       await obsStartRecord();
       scheduleAutoStop(cfg.sessionDurationMins);
@@ -825,7 +844,7 @@ function startServer() {
 
         if (STATE.obsConnected) {
           await obsSwitchScene(cfg.pipSceneName);
-          await obsShowLowerThird(STATE.currentSession.title, STATE.currentSession.presenter);
+          await obsShowLowerThird(STATE.currentSession.title, STATE.currentSession.presenter, STATE.currentSession.start);
         }
         await obsStartRecord();
         scheduleAutoStop(cfg.sessionDurationMins);
