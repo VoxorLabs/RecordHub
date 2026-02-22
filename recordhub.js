@@ -53,7 +53,8 @@ const STATE = {
   obsConnected: false,
   obsVersion: null,
   recording: false,
-  currentSession: null,   // { id, title, presenter, room, date, start, startedAt }
+  currentSession: null,        // { id, title, presenter, room, date, start, startedAt }
+  lastStoppedSessionId: null,  // prevents poll from restarting a session that was manually stopped
   lastPollAt: null,
   lastHeartbeatAt: null,
   totalRecordings: 0,
@@ -615,7 +616,11 @@ async function pollRoomAgent() {
 
     const { session: current, nextStart } = findCurrentSession(data.sessions);
 
-    if (current && (!STATE.currentSession || STATE.currentSession.id !== current.id)) {
+    // When session time passes, reset the manual-stop guard so the next session can auto-start.
+    if (!current) STATE.lastStoppedSessionId = null;
+
+    if (current && (!STATE.currentSession || STATE.currentSession.id !== current.id)
+        && current.id !== STATE.lastStoppedSessionId) {
       if (STATE.recording) {
         log("SESSION CHANGED — stopping previous recording");
         cancelAutoStop();
@@ -824,6 +829,7 @@ function startServer() {
       cancelAutoStop();
       const outputPath = await obsStopRecord();
       const session = STATE.currentSession;
+      STATE.lastStoppedSessionId = session?.id || null;
       STATE.currentSession = null;
       log("MANUAL STOP");
       res.json({ ok: true, outputPath, session });
@@ -874,6 +880,7 @@ function startServer() {
         cancelAutoStop();
         const outputPath = await obsStopRecord();
         const session = STATE.currentSession;
+        STATE.lastStoppedSessionId = session?.id || null;
         STATE.currentSession = null;
         log("TRIGGER STOP");
         res.json({ ok: true, outputPath, session });
