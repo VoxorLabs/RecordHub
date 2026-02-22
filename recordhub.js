@@ -239,20 +239,14 @@ async function obsShowLowerThird(title, presenter, startTime) {
       }
     }
 
-    // Reveal: enable scene items + set filter opacity to 1.0
+    // Reveal: remove any blocking opacity filter then enable scene items.
+    // We don't rely on filter opacity — it varies by OBS version (0-1 vs 0-100)
+    // and silently fails, leaving sources invisible. SetSceneItemEnabled is reliable.
     for (const srcName of [cfg.titleSourceName, "Lower Third BG"]) {
-      // Primary: scene item enable (always works)
+      try { await obs.call("RemoveSourceFilter", { sourceName: srcName, filterName: "Fade" }); } catch {}
       try {
         const { sceneItemId } = await obs.call("GetSceneItemId", { sceneName: SCENE, sourceName: srcName });
         await obs.call("SetSceneItemEnabled", { sceneName: SCENE, sceneItemId, sceneItemEnabled: true });
-      } catch {}
-      // Secondary: filter opacity for fade-in effect
-      try {
-        await obs.call("SetSourceFilterSettings", {
-          sourceName: srcName,
-          filterName: "Fade",
-          filterSettings: { opacity: 1.0 },
-        });
       } catch {}
     }
 
@@ -271,37 +265,14 @@ async function fadeOutLowerThird(cfg) {
 
   const SCENE = cfg.pipSceneName;
 
-  try {
-    // Animate opacity 1.0 → 0.0 over ~1.5 s (10 steps × 150 ms)
-    for (let i = 10; i >= 0; i--) {
-      const opacity = i / 10;
-      await Promise.all([
-        obs.call("SetSourceFilterSettings", {
-          sourceName: cfg.titleSourceName,
-          filterName: "Fade",
-          filterSettings: { opacity },
-        }).catch(() => {}),
-        obs.call("SetSourceFilterSettings", {
-          sourceName: "Lower Third BG",
-          filterName: "Fade",
-          filterSettings: { opacity },
-        }).catch(() => {}),
-      ]);
-      await new Promise(r => setTimeout(r, 150));
-    }
-
-    // After fade: disable scene items so they are truly hidden
-    for (const srcName of [cfg.titleSourceName, "Lower Third BG"]) {
-      try {
-        const { sceneItemId } = await obs.call("GetSceneItemId", { sceneName: SCENE, sourceName: srcName });
-        await obs.call("SetSceneItemEnabled", { sceneName: SCENE, sceneItemId, sceneItemEnabled: false });
-      } catch {}
-    }
-
-    log("LOWER THIRD FADED OUT");
-  } catch (e) {
-    log("LOWER THIRD FADE SKIP", e.message);
+  for (const srcName of [cfg.titleSourceName, "Lower Third BG"]) {
+    try {
+      const { sceneItemId } = await obs.call("GetSceneItemId", { sceneName: SCENE, sourceName: srcName });
+      await obs.call("SetSceneItemEnabled", { sceneName: SCENE, sceneItemId, sceneItemEnabled: false });
+    } catch {}
   }
+
+  log("LOWER THIRD HIDDEN");
 }
 
 // ─── OBS Scene Setup ───
@@ -450,7 +421,8 @@ async function obsSetupScenes() {
     sceneItemTransform: { positionX: 0, positionY: LT_Y, alignment: 5,
       boundsType: "OBS_BOUNDS_STRETCH", boundsWidth: W, boundsHeight: LT_H },
   });
-  await addFadeFilter(LT_BG);
+  // Remove any old opacity-blocking "Fade" filter left from previous setups
+  try { await obs.call("RemoveSourceFilter", { sourceName: LT_BG,   filterName: "Fade" }); } catch {}
 
   // ── 5. Lower Third text — 40 px to fit presenter · title · time ──
   const ltTextId = await upsertInput(LT_TEXT, textKind, {
@@ -465,7 +437,7 @@ async function obsSetupScenes() {
     sceneItemTransform: { positionX: 30, positionY: LT_Y + 12, alignment: 5,
       boundsType: "OBS_BOUNDS_NONE" },
   });
-  await addFadeFilter(LT_TEXT);
+  try { await obs.call("RemoveSourceFilter", { sourceName: LT_TEXT, filterName: "Fade" }); } catch {}
 
   log("OBS SETUP: complete —", SCENE, "ready");
   if (warnings.length) warnings.forEach(w => log("OBS SETUP WARNING:", w));
