@@ -6,23 +6,44 @@
 <title>RecordHub — Setup</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#020617;--surface:#0f172a;--surface2:#1e293b;--border:rgba(148,163,184,0.10);--text:#e2e8f0;--muted:#94a3b8;--mono:'JetBrains Mono',ui-monospace,monospace;--red:#ef4444;--green:#22c55e;--blue:#3b82f6;--purple:#a855f7;--amber:#f59e0b}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:40px 24px}
-.container{max-width:720px;margin:0 auto}
-h1{font-size:28px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:10px}
-h1 .logo-rec{color:var(--red)}
-h1 .logo-hub{background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.subtitle{font-size:14px;color:var(--muted);margin-bottom:24px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px}
-.card h2{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px}
-.card-desc{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5}
-.field{margin-bottom:16px}
-.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-.field input,.field select{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:var(--mono);outline:none;transition:border-color .15s}
-.field input:focus,.field select:focus{border-color:rgba(129,140,248,0.4)}
+:root{
+  --bg:#020617;--surface:#0f172a;--surface2:#1e293b;
+  --border:rgba(148,163,184,0.12);--text:#e2e8f0;--muted:#94a3b8;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --red:#ef4444;--green:#22c55e;--blue:#3b82f6;--amber:#f59e0b;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:36px 20px}
+.container{max-width:680px;margin:0 auto}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+
+.back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-bottom:24px}
+h1{font-size:26px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+.logo-rec{color:var(--red)}
+.logo-hub{background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{font-size:14px;color:var(--muted);margin-bottom:28px}
+
+/* Network banner */
+.net-banner{display:flex;align-items:center;gap:12px;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:12px 16px;margin-bottom:24px;flex-wrap:wrap}
+.net-label{font-size:12px;color:var(--muted)}
+.net-url{font-family:var(--mono);font-size:15px;font-weight:700;color:#60a5fa;background:rgba(59,130,246,0.1);padding:4px 12px;border-radius:6px;border:1px solid rgba(59,130,246,0.2);cursor:pointer;transition:background .15s}
+.net-url:hover,.net-url.copied{background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.3);color:#4ade80}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:18px}
+.card h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px}
+.card-sub{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5}
+.card-sub code{font-family:var(--mono);font-size:12px;background:var(--surface2);padding:1px 5px;border-radius:4px}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.field input,.field select{width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:var(--mono);outline:none;transition:border-color .15s}
+.field input:focus{border-color:rgba(129,140,248,0.4)}
 .field .hint{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.actions{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;align-items:center}
+
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* Buttons */
 .btn{padding:10px 20px;border-radius:9px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
 .btn-primary{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
 .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(79,70,229,.4)}
@@ -33,804 +54,306 @@ h1 .logo-hub{background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-backgrou
 .btn-test:hover{background:rgba(59,130,246,0.18)}
 .btn-green{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:var(--green)}
 .btn-green:hover{background:rgba(34,197,94,0.18)}
-.btn-green:disabled{opacity:.4;cursor:not-allowed}
 .btn-amber{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:var(--amber)}
 .btn-amber:hover{background:rgba(245,158,11,0.18)}
-.btn-sm{padding:6px 12px;font-size:12px}
-.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:2px 8px;border-radius:999px;border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.08);color:var(--green);vertical-align:middle}
-.scene-layout{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:12px;font-family:var(--mono);color:var(--muted);line-height:1.9;margin-bottom:16px}
-.scene-layout .layer{display:flex;align-items:center;gap:10px}
-.scene-layout .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.progress-box{margin-top:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;font-family:var(--mono);color:var(--muted);min-height:48px;display:none}
-.progress-box.show{display:block}
-.progress-line{margin-bottom:2px}
-.progress-line.ok{color:var(--green)}
-.progress-line.err{color:var(--red)}
-.code-block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;font-family:var(--mono);color:var(--text);line-height:1.7;margin-top:6px;word-break:break-all}
-.code-block .key{color:#818cf8}
-.code-block .val{color:#4ade80}
-.code-block .op{color:var(--amber)}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:100;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none}
+.actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;align-items:center}
+
+/* Status feedback */
+.msg{font-size:13px;font-family:var(--mono);padding:3px 0}
+.msg.ok{color:var(--green)}
+.msg.err{color:var(--red)}
+.msg.info{color:var(--muted)}
+
+/* Health */
+.hrow{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.hrow:last-child{border-bottom:none}
+.hdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.hdot.ok{background:var(--green);box-shadow:0 0 7px rgba(34,197,94,.4)}
+.hdot.err{background:var(--red);box-shadow:0 0 7px rgba(239,68,68,.4)}
+.hdot.warn{background:var(--amber)}
+.hlabel{font-size:13px;font-weight:600;min-width:120px}
+.hdetail{font-size:12px;color:var(--muted);font-family:var(--mono);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;vertical-align:middle;margin-left:6px}
+
+/* Trigger API reference */
+.code-block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;font-family:var(--mono);color:var(--text);line-height:1.8;margin-top:8px}
+.code-block .k{color:#818cf8}
+.code-block .v{color:#4ade80}
+.code-block .m{color:var(--amber)}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:100;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
 .toast.ok{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80}
 .toast.err{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171}
-a{color:#818cf8;text-decoration:none}
-a:hover{text-decoration:underline}
-.back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-bottom:20px}
-
-/* ── Network Banner ── */
-.net-banner{display:flex;align-items:center;gap:12px;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;flex-wrap:wrap}
-.net-label{font-size:12px;color:var(--muted);white-space:nowrap}
-.net-url{font-family:var(--mono);font-size:15px;font-weight:700;color:#60a5fa;background:rgba(59,130,246,0.1);padding:4px 10px;border-radius:6px;border:1px solid rgba(59,130,246,0.2);cursor:pointer;transition:background .15s}
-.net-url:hover{background:rgba(59,130,246,0.18)}
-.net-hint{font-size:11px;color:var(--muted);margin-left:auto}
-.copy-flash{color:var(--green)!important;background:rgba(34,197,94,0.1)!important;border-color:rgba(34,197,94,0.3)!important}
-
-/* ── Health Panel ── */
-.hrow{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border)}
-.hrow:last-child{border-bottom:none}
-.hdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;transition:background .3s}
-.hdot.ok{background:var(--green);box-shadow:0 0 7px rgba(34,197,94,.45)}
-.hdot.err{background:var(--red);box-shadow:0 0 7px rgba(239,68,68,.45)}
-.hdot.warn{background:var(--amber)}
-.hlabel{font-size:13px;font-weight:600;min-width:140px;flex-shrink:0}
-.hdetail{font-size:12px;color:var(--muted);font-family:var(--mono);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hfix{font-size:11px;font-weight:600;color:var(--blue);cursor:pointer;white-space:nowrap;padding:3px 8px;border-radius:5px;border:1px solid rgba(59,130,246,.3);background:rgba(59,130,246,.08)}
-.hfix:hover{background:rgba(59,130,246,.15)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;vertical-align:middle;margin-left:4px}
-
-/* ── Wizard ── */
-.wizard-card{border-color:rgba(129,140,248,0.25);background:rgba(15,23,42,.95)}
-.wizard-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-.wizard-header h2{color:#818cf8;margin-bottom:0}
-.wiz-steps{display:flex;align-items:stretch;background:var(--bg);border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-bottom:24px}
-.wstep{flex:1;text-align:center;padding:10px 8px;font-size:12px;font-weight:600;color:var(--muted);border-right:1px solid var(--border);cursor:default;transition:all .2s}
-.wstep:last-child{border-right:none}
-.wstep.active{background:rgba(79,70,229,.15);color:#818cf8}
-.wstep.done{background:rgba(34,197,94,.07);color:var(--green)}
-.wiz-panel{display:none}
-.wiz-panel.active{display:block}
-.wiz-desc{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px;padding:12px 14px;background:var(--bg);border-radius:8px;border:1px solid var(--border)}
-.wiz-desc strong{color:var(--text)}
-.wiz-nav{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;align-items:center}
-.wiz-msg{font-size:12px;margin-left:4px;font-family:var(--mono)}
-.wiz-msg.ok{color:var(--green)}
-.wiz-msg.err{color:var(--red)}
-.done-box{text-align:center;padding:28px 20px}
-.done-icon{font-size:48px;margin-bottom:14px}
-.done-url{font-family:var(--mono);font-size:20px;font-weight:700;color:#60a5fa;display:block;margin:14px auto;padding:10px 20px;background:rgba(59,130,246,.09);border:1px solid rgba(59,130,246,.25);border-radius:8px;cursor:pointer;width:fit-content}
 </style>
 </head>
 <body>
 <div class="container">
 
-<a href="/" class="back">&larr; Dashboard</a>
-<h1><span class="logo-rec">&#9679;</span> Record<span class="logo-hub">Hub</span> Setup</h1>
-<p class="subtitle">Configure OBS, build your recording scene, and connect your room PC trigger.</p>
+<a href="/" class="back">&#8592; Dashboard</a>
+<h1><span class="logo-rec">&#9679;</span> Record<span class="logo-hub">Hub</span> &mdash; Setup</h1>
+<p class="subtitle">Connect OBS, link your room PC, and save. That&rsquo;s all.</p>
 
-<!-- ═══════════════════════ NETWORK BANNER ═══ -->
+<!-- Network banner -->
 <div class="net-banner" id="netBanner" style="display:none">
-  <span class="net-label">This RecordHub is at:</span>
-  <span class="net-url" id="netUrl" onclick="copyNetUrl()" title="Click to copy">detecting…</span>
-  <span class="net-hint">← paste this into the kiosk setup page as the RecordHub URL</span>
+  <span class="net-label">Trigger URL for RoomAgent:</span>
+  <span class="net-url" id="netUrl" onclick="copyUrl()" title="Click to copy">detecting…</span>
+  <span style="font-size:11px;color:var(--muted);margin-left:auto">← paste this in RoomAgent setup</span>
 </div>
 
-<!-- ═══════════════════════ HEALTH PANEL ═══ -->
+<!-- ═══ System Status ═══ -->
 <div class="card">
-  <h2>System Status <span class="live-dot"></span></h2>
+  <h2>System Status <span class="live"></span></h2>
   <div id="healthRows">
     <div class="hrow"><div class="hdot warn"></div><div class="hlabel">Loading…</div></div>
   </div>
-</div>
-
-<!-- ═══════════════════════ WIZARD ═══ -->
-<div class="card wizard-card" id="wizardCard" style="display:none">
-  <div class="wizard-header">
-    <h2>&#9889; Quick Setup Wizard</h2>
-    <button class="btn btn-outline btn-sm" onclick="dismissWizard()">&#10005; Dismiss</button>
-  </div>
-
-  <div class="wiz-steps">
-    <div class="wstep active" id="wtab1">1 &mdash; OBS</div>
-    <div class="wstep" id="wtab2">2 &mdash; Scene</div>
-    <div class="wstep" id="wtab3">3 &mdash; Server</div>
-    <div class="wstep" id="wtab4">&#10003; Done</div>
-  </div>
-
-  <!-- Step 1: OBS Connection -->
-  <div class="wiz-panel active" id="wp1">
-    <div class="wiz-desc">
-      <strong>Connect RecordHub to OBS Studio.</strong><br>
-      In OBS: <strong>Tools &rarr; WebSocket Server Settings &rarr; Enable WebSocket server</strong><br>
-      Note the port (default 4455) and password, then enter them below.
-    </div>
-    <div class="field">
-      <label>OBS WebSocket URL</label>
-      <input type="text" id="w1_url" placeholder="ws://localhost:4455">
-      <div class="hint">Use <code>ws://localhost:4455</code> when OBS is on this same machine.</div>
-    </div>
-    <div class="field">
-      <label>OBS WebSocket Password</label>
-      <input type="password" id="w1_pass" placeholder="Leave blank if no password set">
-    </div>
-    <div class="wiz-nav">
-      <button class="btn btn-primary" onclick="wizTestObs()">Test Connection &amp; Continue &rarr;</button>
-      <span class="wiz-msg" id="w1_msg"></span>
-    </div>
-  </div>
-
-  <!-- Step 2: Scene Builder -->
-  <div class="wiz-panel" id="wp2">
-    <div class="wiz-desc">
-      <strong>Build the recording scene in OBS.</strong><br>
-      RecordHub creates all sources automatically — slides, presenter camera PiP, and the lower-third overlay.
-      Connect your camera before clicking Build.
-    </div>
-    <div class="field">
-      <label>Slides Display URL <span style="font-weight:400;text-transform:none;font-size:10px">(optional)</span></label>
-      <input type="text" id="w2_slides" placeholder="http://10.0.0.X:3199/kiosk">
-      <div class="hint">Leave blank to capture a monitor instead. Enter the kiosk page URL if the room PC streams it.</div>
-    </div>
-    <div class="field">
-      <label>Presenter Camera</label>
-      <select id="w2_cam">
-        <option value="">— click Detect Sources first —</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Fallback Monitor <span style="font-weight:400;text-transform:none;font-size:10px">(used when Slides URL is blank)</span></label>
-      <select id="w2_mon">
-        <option value="0">Monitor 1 (Primary)</option>
-        <option value="1">Monitor 2</option>
-        <option value="2">Monitor 3</option>
-      </select>
-    </div>
-    <div class="wiz-nav">
-      <button class="btn btn-outline" onclick="wizGo(1)">&larr; Back</button>
-      <button class="btn btn-test" onclick="wizDetect()">Detect Sources</button>
-      <button class="btn btn-green" id="w2_buildBtn" onclick="wizBuild()">Build OBS Scene &amp; Continue &rarr;</button>
-      <span class="wiz-msg" id="w2_msg"></span>
-    </div>
-  </div>
-
-  <!-- Step 3: PresenterHub Server -->
-  <div class="wiz-panel" id="wp3">
-    <div class="wiz-desc">
-      <strong>Connect to PresenterHub</strong> to receive agenda data and auto-trigger recordings based on the schedule.
-      You can skip this if you'll only use manual or push triggers.
-    </div>
-    <div class="row">
-      <div class="field">
-        <label>PresenterHub Server URL</label>
-        <input type="text" id="w3_server" placeholder="http://10.0.0.166:8088">
-      </div>
-      <div class="field">
-        <label>Room Name</label>
-        <input type="text" id="w3_room" placeholder="BallroomA">
-      </div>
-    </div>
-    <div class="field">
-      <label>RoomAgent URL <span style="font-weight:400;text-transform:none;font-size:10px">(kiosk laptop)</span></label>
-      <input type="text" id="w3_agent" placeholder="http://10.0.0.X:3199">
-      <div class="hint">The laptop running the room kiosk. Used as a polling fallback and for Escape-to-stop triggers.</div>
-    </div>
-    <div class="wiz-nav">
-      <button class="btn btn-outline" onclick="wizGo(2)">&larr; Back</button>
-      <button class="btn btn-primary" onclick="wizFinish()">Save &amp; Finish &#10003;</button>
-      <button class="btn btn-outline" onclick="dismissWizard()">Skip</button>
-      <span class="wiz-msg" id="w3_msg"></span>
-    </div>
-  </div>
-
-  <!-- Step 4: Done -->
-  <div class="wiz-panel" id="wp4">
-    <div class="done-box">
-      <div class="done-icon">&#10003;</div>
-      <div style="font-size:18px;font-weight:800;margin-bottom:8px">RecordHub is ready!</div>
-      <div style="font-size:13px;color:var(--muted)">Share this address with your kiosk setup page:</div>
-      <span class="done-url" id="doneUrl" onclick="copyNetUrl()" title="Click to copy">…</span>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:20px">Click the URL above to copy it</div>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        <a href="/" class="btn btn-primary">Open Dashboard</a>
-        <button class="btn btn-outline" onclick="testLowerThird()">Test Lower Third</button>
-        <button class="btn btn-outline btn-sm" onclick="dismissWizard()">Close Wizard</button>
-      </div>
-    </div>
+  <div class="actions">
+    <button class="btn btn-amber" id="btnTestLT" onclick="testLowerThird()" disabled>Test Lower Third (10 s)</button>
   </div>
 </div>
 
-<!-- ═══════════════════════ OBS STUDIO ═══ -->
+<!-- ═══ 1. OBS Studio ═══ -->
 <div class="card">
-  <h2>OBS Studio</h2>
-  <div class="card-desc">Connection settings for OBS WebSocket (Tools &rsaquo; WebSocket Server Settings).</div>
+  <h2>1 &mdash; OBS Studio</h2>
+  <p class="card-sub">
+    In OBS: <code>Tools &rarr; WebSocket Server Settings &rarr; Enable WebSocket server</code>.<br>
+    Note the port (default 4455) and set a password. Enter them below.
+  </p>
   <div class="field">
-    <label>OBS WebSocket URL</label>
+    <label>WebSocket URL</label>
     <input type="text" id="obsWebSocketUrl" placeholder="ws://localhost:4455">
+    <div class="hint">Use <code>ws://localhost:4455</code> when OBS is on this same machine.</div>
   </div>
   <div class="field">
-    <label>OBS WebSocket Password</label>
-    <input type="password" id="obsPassword" placeholder="Leave blank if not set">
+    <label>Password</label>
+    <input type="password" id="obsPassword" placeholder="Leave blank if no password set">
   </div>
-  <div class="row">
-    <div class="field">
-      <label>PiP Scene Name</label>
-      <input type="text" id="pipSceneName" placeholder="Session Recording">
-      <div class="hint">Scene to switch to when recording starts</div>
-    </div>
-    <div class="field">
-      <label>Lower Third Source Name</label>
-      <input type="text" id="titleSourceName" placeholder="Lower Third">
-      <div class="hint">Must match what Scene Builder creates</div>
-    </div>
+  <div class="actions">
+    <button class="btn btn-test" onclick="testObs()">Test &amp; Connect</button>
+    <span class="msg info" id="obsMsg"></span>
   </div>
-  <button class="btn btn-test" onclick="testObs()">Test OBS Connection</button>
 </div>
 
-<!-- ═══════════════════════ SCENE BUILDER ═══ -->
-<div class="card" id="sceneBuilderCard">
-  <h2>Scene Builder <span class="badge">Auto-Configure OBS</span></h2>
-  <div class="card-desc">
-    Builds the full recording scene in OBS automatically. OBS must be running and connected first.
-  </div>
-
-  <div class="scene-layout">
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;color:var(--muted)">Scene layers (top → bottom)</div>
-    <div class="layer"><span class="dot" style="background:#a855f7"></span><span style="color:var(--text)">Lower Third</span><span style="margin-left:auto;color:#a855f7;font-size:11px">text — fades in, fades out after 10 s</span></div>
-    <div class="layer"><span class="dot" style="background:#f59e0b"></span><span style="color:var(--text)">Lower Third BG</span><span style="margin-left:auto;color:#f59e0b;font-size:11px">dark strip — same fade</span></div>
-    <div class="layer"><span class="dot" style="background:#3b82f6"></span><span style="color:var(--text)">Presenter Cam</span><span style="margin-left:auto;color:#3b82f6;font-size:11px">320×180 PiP — lower-right</span></div>
-    <div class="layer"><span class="dot" style="background:#64748b"></span><span style="color:var(--text)">Slides</span><span style="margin-left:auto;font-size:11px">browser source or monitor capture</span></div>
-  </div>
-
+<!-- ═══ 2. RoomAgent ═══ -->
+<div class="card">
+  <h2>2 &mdash; RoomAgent</h2>
+  <p class="card-sub">
+    The laptop running the room kiosk. RecordHub polls it for session info (presenter name, title)
+    to display on the lower third overlay. Recording is triggered by the kiosk &mdash; not by this poll.
+  </p>
   <div class="field">
-    <label>Slides URL <span style="font-weight:400;text-transform:none;font-size:10px">(optional)</span></label>
-    <input type="text" id="slidesUrl" placeholder="http://10.0.0.X:3199/kiosk" oninput="toggleMonitorRow()">
-    <div class="hint">OBS renders this page as the slides layer. Leave blank to fall back to monitor capture.</div>
+    <label>RoomAgent URL</label>
+    <input type="text" id="roomAgentBase" placeholder="http://10.0.0.X:3199">
+    <div class="hint">IP address of the room laptop running RoomAgent.</div>
   </div>
-
-  <div class="row">
-    <div class="field" id="monitorFallbackField" style="display:none">
-      <label>Fallback Monitor</label>
-      <select id="slidesMonitor">
-        <option value="0">Monitor 1 (Primary)</option>
-        <option value="1">Monitor 2</option>
-        <option value="2">Monitor 3</option>
-      </select>
-      <div class="hint">Used only when Slides URL is blank</div>
-    </div>
-    <div class="field">
-      <label>Canvas Width</label>
-      <input type="number" id="canvasWidth" value="1920">
-    </div>
-    <div class="field">
-      <label>Canvas Height</label>
-      <input type="number" id="canvasHeight" value="1080">
-    </div>
-  </div>
-
   <div class="field">
-    <label>Camera Device</label>
-    <select id="cameraDevice">
-      <option value="">— click Detect Sources to populate —</option>
-    </select>
-    <div class="hint">DirectShow camera used for the presenter PiP</div>
+    <label>Room Name <span style="font-weight:400;text-transform:none;font-size:10px">(optional — used for recordings folder)</span></label>
+    <input type="text" id="room" placeholder="BallroomA">
   </div>
-
-  <div class="actions" style="margin-top:4px">
-    <button class="btn btn-test" onclick="detectSources()">Detect Sources</button>
-    <button class="btn btn-green" id="btnBuild" onclick="buildScenes()">Build OBS Scenes</button>
-    <button class="btn btn-amber" onclick="testLowerThird()">Test Lower Third</button>
-  </div>
-
-  <div class="progress-box" id="buildProgress"></div>
-</div>
-
-<!-- ═══════════════════════ PRESENTERHUB SERVER ═══ -->
-<div class="card">
-  <h2>PresenterHub Server</h2>
-  <div class="row">
-    <div class="field">
-      <label>Server Base URL</label>
-      <input type="text" id="presenterHubBase" placeholder="http://10.0.0.166:8088">
-    </div>
-    <div class="field">
-      <label>Room</label>
-      <input type="text" id="room" placeholder="BallroomA">
-      <div class="hint">Used for heartbeat and file organisation</div>
-    </div>
+  <div class="actions">
+    <button class="btn btn-test" onclick="testRoomAgent()">Test Connection</button>
+    <span class="msg info" id="raMsg"></span>
   </div>
 </div>
 
-<!-- ═══════════════════════ ROOMAGENT ═══ -->
+<!-- ═══ 3. Recordings ═══ -->
 <div class="card">
-  <h2>RoomAgent (Poll)</h2>
+  <h2>3 &mdash; Recordings</h2>
   <div class="row">
     <div class="field">
-      <label>RoomAgent Base URL</label>
-      <input type="text" id="roomAgentBase" placeholder="http://localhost:3199">
-      <div class="hint">Polled as a fallback if push trigger is not used</div>
-    </div>
-    <div class="field">
-      <label>Poll Interval (ms)</label>
-      <input type="number" id="pollMs" placeholder="5000">
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════ RECORDING ═══ -->
-<div class="card">
-  <h2>Recording</h2>
-  <div class="row">
-    <div class="field">
-      <label>Recordings Folder</label>
+      <label>Save Folder</label>
       <input type="text" id="recordingsRoot" placeholder="C:\RecordHub\recordings">
+      <div class="hint">Where recorded files are moved after each session.</div>
     </div>
     <div class="field">
-      <label>Auto-Remux to MP4</label>
+      <label>Auto-remux MKV → MP4</label>
       <select id="autoRemuxToMp4">
-        <option value="true">Yes (requires ffmpeg)</option>
-        <option value="false">No (keep MKV)</option>
+        <option value="true">Yes (requires ffmpeg in PATH)</option>
+        <option value="false">No — keep MKV</option>
       </select>
-    </div>
-  </div>
-  <div class="row">
-    <div class="field">
-      <label>Max Session Duration (minutes)</label>
-      <input type="number" id="sessionDurationMins" placeholder="90">
-      <div class="hint">Auto-stops recording as a safety net. 0 = disabled.</div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════ TRIGGER API ═══ -->
+<!-- ═══ Save ═══ -->
+<div class="actions" style="margin-bottom:32px">
+  <button class="btn btn-primary" onclick="save()">Save Configuration</button>
+  <a href="/" class="btn btn-outline">Cancel</a>
+</div>
+
+<!-- ═══ Trigger API Reference ═══ -->
 <div class="card">
-  <h2>Remote Trigger API</h2>
-  <div class="card-desc">
-    Any device on the LAN can start or stop recording with a plain HTTP POST.
-  </div>
+  <h2>Trigger API</h2>
+  <p class="card-sub">
+    RoomAgent uses these endpoints to start and stop recording. Any device on the LAN can call them.
+  </p>
   <div class="field">
     <label>Start Recording</label>
     <div class="code-block">
-      <span class="op">POST</span> http://<span class="key" id="triggerUrlDisplay">&lt;recordhub-ip&gt;</span>:3299/api/trigger<br>
-      {<br>
-      &nbsp;&nbsp;<span class="key">"action"</span>: <span class="val">"start"</span>,<br>
-      &nbsp;&nbsp;<span class="key">"title"</span>: <span class="val">"Talk Title"</span>,<br>
-      &nbsp;&nbsp;<span class="key">"presenter"</span>: <span class="val">"Jane Smith"</span>,<br>
-      &nbsp;&nbsp;<span class="key">"room"</span>: <span class="val">"BallroomA"</span><br>
-      }
-    </div>
+<span class="m">POST</span> http://<span class="k" id="apiHost">&#60;this-machine-ip&#62;</span>:3299/api/trigger
+{
+  <span class="k">"action"</span>: <span class="v">"start"</span>,
+  <span class="k">"title"</span>: <span class="v">"Talk Title"</span>,
+  <span class="k">"presenter"</span>: <span class="v">"Jane Smith"</span>,
+  <span class="k">"sessionId"</span>: <span class="v">"123"</span>
+}</div>
   </div>
   <div class="field" style="margin-bottom:0">
     <label>Stop Recording</label>
     <div class="code-block">
-      <span class="op">POST</span> http://<span class="key" id="triggerUrlDisplay2">&lt;recordhub-ip&gt;</span>:3299/api/trigger<br>
-      { <span class="key">"action"</span>: <span class="val">"stop"</span> }
-    </div>
+<span class="m">POST</span> http://<span class="k" id="apiHost2">&#60;this-machine-ip&#62;</span>:3299/api/trigger
+{ <span class="k">"action"</span>: <span class="v">"stop"</span> }</div>
   </div>
-</div>
-
-<!-- ═══════════════════════ SAVE ═══ -->
-<div class="actions" style="margin-bottom:40px">
-  <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
-  <a href="/" class="btn btn-outline">Cancel</a>
 </div>
 
 </div><!-- /container -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── Utilities ───
-function showToast(msg, type) {
-  const t = document.getElementById("toast");
+function $(id){ return document.getElementById(id); }
+function showToast(msg, type){
+  const t = $("toast");
   t.textContent = msg;
   t.className = "toast show " + (type || "ok");
-  setTimeout(() => t.className = "toast", 3000);
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.className = "toast", 3000);
 }
-function $(id) { return document.getElementById(id); }
-function setMsg(id, msg, type) {
-  const el = $(id);
-  if (!el) return;
+function setMsg(id, msg, type){
+  const el = $(id); if (!el) return;
   el.textContent = msg;
-  el.className = "wiz-msg" + (type ? " " + type : "");
+  el.className = "msg " + (type || "info");
 }
 
-// ─── Network Info ───
+// ─── Network info ───
 let _netUrl = "";
-async function loadNetworkInfo() {
-  try {
+async function loadNetInfo(){
+  try{
     const d = await fetch("/api/network-info").then(r => r.json());
-    if (!d.ok) return;
+    if(!d.ok) return;
     _netUrl = d.url;
     $("netUrl").textContent = d.url;
     $("netBanner").style.display = "flex";
-    $("doneUrl").textContent = d.url;
-    // Fill in Trigger API reference
-    ["triggerUrlDisplay", "triggerUrlDisplay2"].forEach(id => {
-      if ($(id)) $(id).textContent = d.recommended + ":3299";
-    });
-  } catch {}
+    $("apiHost").textContent = d.recommended + ":3299";
+    $("apiHost2").textContent = d.recommended + ":3299";
+  }catch{}
 }
-
-async function copyNetUrl() {
+async function copyUrl(){
   const url = _netUrl || $("netUrl").textContent;
-  try {
+  try{
     await navigator.clipboard.writeText(url);
     const el = $("netUrl");
-    el.classList.add("copy-flash");
-    el.textContent = "Copied!";
-    setTimeout(() => {
-      el.classList.remove("copy-flash");
-      el.textContent = url;
-    }, 1500);
+    el.classList.add("copied"); el.textContent = "Copied!";
+    setTimeout(()=>{ el.classList.remove("copied"); el.textContent = url; }, 1500);
     showToast("Copied: " + url, "ok");
-  } catch { showToast("Copy failed — select and copy manually", "err"); }
+  }catch{ showToast("Select and copy manually", "err"); }
 }
 
-// ─── Health Panel ───
-let healthInterval = null;
-
-async function refreshHealth() {
-  try {
+// ─── Health ───
+async function refreshHealth(){
+  try{
     const d = await fetch("/api/health").then(r => r.json());
-    if (!d.ok) return;
-    renderHealth(d.checks);
-    // Show/hide wizard based on real state
-    const wizDismissed = localStorage.getItem("rh_wizard_dismissed") === "1";
-    if (!wizDismissed) {
-      const obsOk = d.checks.find(c => c.key === "obs")?.ok;
-      const sceneOk = d.checks.find(c => c.key === "scene")?.ok;
-      if (!obsOk) showWizardStep(1);
-      else if (!sceneOk) showWizardStep(2);
-      // else wizard stays hidden / at done state
-    }
-  } catch {}
+    if(!d.ok) return;
+    const rows = $("healthRows");
+    rows.innerHTML = d.checks.map(c => `
+      <div class="hrow">
+        <div class="hdot ${c.ok ? "ok" : "err"}"></div>
+        <div class="hlabel">${c.label}</div>
+        <div class="hdetail" title="${c.detail}">${c.detail}</div>
+      </div>`).join("");
+    const obsOk = d.checks.find(c => c.key === "obs")?.ok;
+    $("btnTestLT").disabled = !obsOk;
+  }catch{}
 }
 
-function renderHealth(checks) {
-  const container = $("healthRows");
-  container.innerHTML = "";
-  for (const c of checks) {
-    const row = document.createElement("div");
-    row.className = "hrow";
-    row.innerHTML =
-      `<div class="hdot ${c.ok ? "ok" : "err"}"></div>` +
-      `<div class="hlabel">${c.label}</div>` +
-      `<div class="hdetail" title="${c.detail}">${c.detail}</div>` +
-      (c.action ? `<button class="hfix" onclick="healthAction('${c.action}')">${actionLabel(c.action)}</button>` : "");
-    container.appendChild(row);
-  }
-}
-
-function actionLabel(action) {
-  if (action === "test-obs") return "Fix →";
-  if (action === "build-scene") return "Build →";
-  return "Fix →";
-}
-
-function healthAction(action) {
-  if (action === "test-obs") {
-    $("obsWebSocketUrl").scrollIntoView({ behavior: "smooth", block: "center" });
-    $("obsWebSocketUrl").focus();
-    $("wizardCard").style.display = "block";
-    showWizardStep(1);
-  } else if (action === "build-scene") {
-    $("sceneBuilderCard").scrollIntoView({ behavior: "smooth", block: "start" });
-    const wizDismissed = localStorage.getItem("rh_wizard_dismissed") === "1";
-    if (!wizDismissed) showWizardStep(2);
-  }
-}
-
-// ─── Wizard ───
-let _currentWizStep = 0;
-
-function showWizardStep(step) {
-  $("wizardCard").style.display = "block";
-  _currentWizStep = step;
-  [1,2,3,4].forEach(i => {
-    const panel = $("wp" + i);
-    const tab = $("wtab" + i);
-    if (!panel || !tab) return;
-    panel.classList.toggle("active", i === step);
-    tab.classList.remove("active", "done");
-    if (i === step) tab.classList.add("active");
-    else if (i < step) tab.classList.add("done");
-  });
-}
-
-function wizGo(step) { showWizardStep(step); }
-
-function dismissWizard() {
-  $("wizardCard").style.display = "none";
-  localStorage.setItem("rh_wizard_dismissed", "1");
-}
-
-async function wizTestObs() {
-  const url = $("w1_url").value.trim() || "ws://localhost:4455";
-  const pass = $("w1_pass").value.trim();
-  setMsg("w1_msg", "Connecting…");
-  // Save these to main form too
-  $("obsWebSocketUrl").value = url;
-  if (pass) $("obsPassword").value = pass;
-  // Save config first
-  const cfg = { obsWebSocketUrl: url };
-  if (pass) cfg.obsPassword = pass;
-  await fetch("/api/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cfg) });
-  // Test
-  try {
-    const d = await fetch("/api/obs/reconnect", { method: "POST" }).then(r => r.json());
-    if (d.connected) {
-      setMsg("w1_msg", "Connected!", "ok");
-      setTimeout(() => showWizardStep(2), 600);
-    } else {
-      setMsg("w1_msg", "Failed: " + (d.error || "check URL and password"), "err");
-    }
-  } catch (e) {
-    setMsg("w1_msg", "Error: " + e.message, "err");
-  }
-}
-
-async function wizDetect() {
-  setMsg("w2_msg", "Detecting…");
-  try {
-    const d = await fetch("/api/obs/sources").then(r => r.json());
-    if (!d.ok) { setMsg("w2_msg", d.error || "Detection failed", "err"); return; }
-
-    const camSel = $("w2_cam");
-    camSel.innerHTML = '<option value="">None</option>';
-    (d.cameras || []).forEach(c => {
-      const opt = document.createElement("option");
-      opt.value = c.id; opt.textContent = c.name;
-      camSel.appendChild(opt);
-    });
-    // Also sync monitors
-    const monSel = $("w2_mon");
-    monSel.innerHTML = "";
-    (d.monitors || []).forEach(m => {
-      const opt = document.createElement("option");
-      opt.value = String(m.id);
-      opt.textContent = m.width ? `${m.name} (${m.width}×${m.height})` : m.name;
-      monSel.appendChild(opt);
-    });
-    setMsg("w2_msg", `${d.cameras?.length || 0} camera(s), ${d.monitors?.length || 0} monitor(s)`, "ok");
-    // Also update main form dropdowns
-    detectSources();
-  } catch (e) {
-    setMsg("w2_msg", e.message, "err");
-  }
-}
-
-async function wizBuild() {
-  const slides = $("w2_slides").value.trim();
-  const cam = $("w2_cam").value;
-  const mon = parseInt($("w2_mon").value) || 0;
-  // Sync to main form
-  $("slidesUrl").value = slides;
-  $("cameraDevice").value = cam;
-  const monSel = $("slidesMonitor");
-  for (const o of monSel.options) { if (o.value === String(mon)) { o.selected = true; break; } }
-  toggleMonitorRow();
-  // Save config
-  await saveConfig();
-  // Build
-  setMsg("w2_msg", "Building scene…");
-  $("w2_buildBtn").disabled = true;
-  try {
-    const d = await fetch("/api/obs/setup-scenes", { method: "POST" }).then(r => r.json());
-    if (d.ok) {
-      setMsg("w2_msg", "Scene built!", "ok");
-      setTimeout(() => {
-        showWizardStep(3);
-        // Pre-fill step 3 from main form
-        $("w3_server").value = $("presenterHubBase").value;
-        $("w3_room").value = $("room").value;
-        $("w3_agent").value = $("roomAgentBase").value;
-      }, 700);
-      refreshHealth();
-    } else {
-      setMsg("w2_msg", "Error: " + (d.error || "build failed"), "err");
-    }
-  } catch (e) {
-    setMsg("w2_msg", "Error: " + e.message, "err");
-  } finally {
-    $("w2_buildBtn").disabled = false;
-  }
-}
-
-async function wizFinish() {
-  const server = $("w3_server").value.trim();
-  const room = $("w3_room").value.trim();
-  const agent = $("w3_agent").value.trim();
-  // Sync to main form
-  if (server) $("presenterHubBase").value = server;
-  if (room) $("room").value = room;
-  if (agent) $("roomAgentBase").value = agent;
-  setMsg("w3_msg", "Saving…");
-  await saveConfig();
-  setMsg("w3_msg", "Saved!", "ok");
-  $("doneUrl").textContent = _netUrl || "…";
-  setTimeout(() => showWizardStep(4), 600);
-  refreshHealth();
-}
-
-// ─── Config ───
-async function loadConfig() {
-  try {
-    const r = await fetch("/api/config");
-    const d = await r.json();
-    if (!d.ok) return;
+// ─── Load config ───
+async function loadConfig(){
+  try{
+    const d = await fetch("/api/config").then(r => r.json());
+    if(!d.ok) return;
     const c = d.config;
-    $("obsWebSocketUrl").value = c.obsWebSocketUrl || "";
-    $("obsPassword").value = "";
-    $("pipSceneName").value = c.pipSceneName || "";
-    $("titleSourceName").value = c.titleSourceName || "";
-    $("presenterHubBase").value = c.presenterHubBase || "";
-    $("room").value = c.room || "";
+    $("obsWebSocketUrl").value = c.obsWebSocketUrl || "ws://localhost:4455";
+    $("obsPassword").value = "";   // never pre-fill password
     $("roomAgentBase").value = c.roomAgentBase || "";
-    $("pollMs").value = c.pollMs || 5000;
+    $("room").value = c.room || "";
     $("recordingsRoot").value = c.recordingsRoot || "";
     $("autoRemuxToMp4").value = String(c.autoRemuxToMp4 !== false);
-    $("sessionDurationMins").value = c.sessionDurationMins ?? 90;
-    $("slidesUrl").value = c.slidesUrl || "";
-    const monSel = $("slidesMonitor");
-    const savedMon = String(c.slidesMonitor ?? 0);
-    for (const opt of monSel.options) { if (opt.value === savedMon) { opt.selected = true; break; } }
-    $("canvasWidth").value = c.canvasWidth || 1920;
-    $("canvasHeight").value = c.canvasHeight || 1080;
-    toggleMonitorRow();
-    if (c.cameraDevice) {
-      const camSel = $("cameraDevice");
-      const opt = document.createElement("option");
-      opt.value = c.cameraDevice; opt.textContent = c.cameraDevice; opt.selected = true;
-      camSel.appendChild(opt);
-    }
-    // Pre-fill wizard step 3
-    $("w3_server").value = c.presenterHubBase || "";
-    $("w3_room").value = c.room || "";
-    $("w3_agent").value = c.roomAgentBase || "";
-    // Pre-fill wizard step 1
-    $("w1_url").value = c.obsWebSocketUrl || "ws://localhost:4455";
-  } catch { showToast("Failed to load config", "err"); }
+  }catch{ showToast("Failed to load config", "err"); }
 }
 
-async function saveConfig() {
+// ─── Save config ───
+async function save(){
   const cfg = {
     obsWebSocketUrl: $("obsWebSocketUrl").value.trim(),
-    pipSceneName: $("pipSceneName").value.trim(),
-    titleSourceName: $("titleSourceName").value.trim(),
-    presenterHubBase: $("presenterHubBase").value.trim(),
-    room: $("room").value.trim(),
     roomAgentBase: $("roomAgentBase").value.trim(),
-    pollMs: parseInt($("pollMs").value) || 5000,
+    room: $("room").value.trim(),
     recordingsRoot: $("recordingsRoot").value.trim(),
     autoRemuxToMp4: $("autoRemuxToMp4").value === "true",
-    sessionDurationMins: parseInt($("sessionDurationMins").value) || 0,
-    slidesUrl: $("slidesUrl").value.trim(),
-    slidesMonitor: parseInt($("slidesMonitor").value) || 0,
-    cameraDevice: $("cameraDevice").value.trim(),
-    canvasWidth: parseInt($("canvasWidth").value) || 1920,
-    canvasHeight: parseInt($("canvasHeight").value) || 1080,
   };
   const pw = $("obsPassword").value.trim();
-  if (pw && pw !== "****") cfg.obsPassword = pw;
-  try {
+  if(pw && pw !== "****") cfg.obsPassword = pw;
+  try{
     const d = await fetch("/api/config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cfg),
+      method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(cfg),
     }).then(r => r.json());
-    if (d.ok) showToast("Configuration saved!", "ok");
+    if(d.ok) showToast("Configuration saved!", "ok");
     else showToast(d.error || "Save failed", "err");
-  } catch { showToast("Network error", "err"); }
+  }catch{ showToast("Network error", "err"); }
 }
 
-// ─── OBS ───
-async function testObs() {
-  showToast("Testing OBS connection…", "ok");
-  try {
-    const d = await fetch("/api/obs/reconnect", { method: "POST" }).then(r => r.json());
-    if (d.connected) {
-      showToast("OBS connected!", "ok");
+// ─── Test OBS ───
+async function testObs(){
+  const url  = $("obsWebSocketUrl").value.trim() || "ws://localhost:4455";
+  const pw   = $("obsPassword").value.trim();
+  setMsg("obsMsg", "Connecting…", "info");
+  // Save first
+  const cfg = { obsWebSocketUrl: url };
+  if(pw && pw !== "****") cfg.obsPassword = pw;
+  await fetch("/api/config", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(cfg) });
+  try{
+    const d = await fetch("/api/obs/reconnect", { method:"POST" }).then(r => r.json());
+    if(d.connected){
+      setMsg("obsMsg", "Connected — OBS " + (d.version || ""), "ok");
       refreshHealth();
-    } else {
-      showToast("OBS failed: " + (d.error || "unknown"), "err");
+    }else{
+      setMsg("obsMsg", "Failed: " + (d.error || "check URL and password"), "err");
     }
-  } catch (e) { showToast("Error: " + e.message, "err"); }
+  }catch(e){ setMsg("obsMsg", "Error: " + e.message, "err"); }
 }
 
-// ─── Scene Builder ───
-function toggleMonitorRow() {
-  const hasUrl = $("slidesUrl").value.trim().length > 0;
-  $("monitorFallbackField").style.display = hasUrl ? "none" : "block";
-}
-
-async function detectSources() {
-  showToast("Detecting monitors and cameras…", "ok");
-  try {
-    const d = await fetch("/api/obs/sources").then(r => r.json());
-    if (!d.ok) { showToast(d.error || "Detection failed", "err"); return; }
-    const monSel = $("slidesMonitor");
-    const prevMon = monSel.value;
-    monSel.innerHTML = "";
-    (d.monitors || []).forEach(m => {
-      const opt = document.createElement("option");
-      opt.value = String(m.id);
-      opt.textContent = m.width ? `${m.name} (${m.width}×${m.height})` : m.name;
-      if (opt.value === prevMon) opt.selected = true;
-      monSel.appendChild(opt);
-    });
-    const camSel = $("cameraDevice");
-    const prevCam = camSel.value;
-    camSel.innerHTML = '<option value="">None / configure later</option>';
-    (d.cameras || []).forEach(c => {
-      const opt = document.createElement("option");
-      opt.value = c.id; opt.textContent = c.name;
-      if (c.id === prevCam) opt.selected = true;
-      camSel.appendChild(opt);
-    });
-    showToast(`Found ${d.monitors?.length||0} monitor(s), ${d.cameras?.length||0} camera(s)`, "ok");
-  } catch (e) { showToast("Detect failed: " + e.message, "err"); }
-}
-
-async function buildScenes() {
-  const btn = $("btnBuild");
-  const box = $("buildProgress");
-  function progress(msg, type) {
-    const line = document.createElement("div");
-    line.className = "progress-line" + (type ? " " + type : "");
-    line.textContent = msg;
-    box.appendChild(line);
-    box.scrollTop = box.scrollHeight;
-  }
-  btn.disabled = true;
-  box.innerHTML = "";
-  box.classList.add("show");
-  progress("Saving config…");
-  await saveConfig();
-  progress("Building scene in OBS…");
-  try {
-    const d = await fetch("/api/obs/setup-scenes", { method: "POST" }).then(r => r.json());
-    if (d.ok) {
-      progress(`Scene "${d.scene}" created.`, "ok");
-      progress(`Slides: ${d.slidesKind}  ·  Camera: ${d.camKind}  ·  Text: ${d.textKind}`, "ok");
-      (d.warnings || []).forEach(w => progress("Warning: " + w));
-      if (!d.warnings?.length) progress("All sources ready — good to record.", "ok");
-      showToast("OBS scene built!", "ok");
-      refreshHealth();
-    } else {
-      progress("Error: " + (d.error || "unknown"), "err");
-      showToast(d.error || "Build failed", "err");
+// ─── Test RoomAgent ───
+async function testRoomAgent(){
+  const url = $("roomAgentBase").value.trim();
+  if(!url){ setMsg("raMsg","Enter a URL first","err"); return; }
+  setMsg("raMsg","Testing…","info");
+  try{
+    const r = await fetch(url + "/api/kiosk-data", { signal: AbortSignal.timeout(5000) });
+    const d = await r.json();
+    if(d.ok){
+      setMsg("raMsg", `Connected — ${d.sessions?.length ?? 0} sessions`, "ok");
+    }else{
+      setMsg("raMsg", "Responded but ok=false", "err");
     }
-  } catch (e) {
-    progress("Network error: " + e.message, "err");
-    showToast("Build failed: " + e.message, "err");
-  } finally { btn.disabled = false; }
+  }catch(e){ setMsg("raMsg", "Unreachable: " + e.message.split(":")[0], "err"); }
 }
 
-// ─── Test Lower Third ───
-async function testLowerThird() {
+// ─── Test lower third ───
+async function testLowerThird(){
   showToast("Showing lower third in OBS…", "ok");
-  try {
-    const d = await fetch("/api/obs/test-lower-third", { method: "POST" }).then(r => r.json());
-    if (d.ok) showToast("Lower third shown! Fades after 10 s.", "ok");
+  try{
+    const d = await fetch("/api/obs/test-lower-third", { method:"POST" }).then(r => r.json());
+    if(d.ok) showToast("Lower third shown! Fades after 10 s.", "ok");
     else showToast("Error: " + (d.error || "failed"), "err");
-  } catch (e) { showToast("Error: " + e.message, "err"); }
+  }catch(e){ showToast("Error: " + e.message, "err"); }
 }
 
 // ─── Init ───
-(async () => {
+(async()=>{
+  await loadNetInfo();
   await loadConfig();
-  await loadNetworkInfo();
   await refreshHealth();
-  // Auto-refresh health every 10 s
-  healthInterval = setInterval(refreshHealth, 10_000);
-  // Show wizard if OBS not yet connected and not dismissed
-  const dismissed = localStorage.getItem("rh_wizard_dismissed") === "1";
-  if (!dismissed) {
-    try {
-      const s = await fetch("/api/status").then(r => r.json());
-      if (!s.obsConnected) showWizardStep(1);
-    } catch {}
-  }
+  setInterval(refreshHealth, 10000);
 })();
 </script>
 </body>

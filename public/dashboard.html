@@ -3,211 +3,176 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RecordHub — Live Recording Dashboard</title>
+<title>RecordHub</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#020617;--surface:#0f172a;--surface2:#1e293b;--border:rgba(148,163,184,0.10);
-  --text:#e2e8f0;--muted:#94a3b8;--mono:'JetBrains Mono',ui-monospace,monospace;
-  --red:#ef4444;--green:#22c55e;--amber:#f59e0b;--blue:#3b82f6;--purple:#a855f7;
-  --rec-glow:rgba(239,68,68,0.3);
+  --bg:#020617;--surface:#0f172a;--surface2:#1e293b;
+  --border:rgba(148,163,184,0.10);--text:#e2e8f0;--muted:#94a3b8;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --red:#ef4444;--green:#22c55e;--amber:#f59e0b;--blue:#3b82f6;
+  --rec-glow:rgba(239,68,68,0.35);
 }
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 
 /* Header */
-.header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);background:rgba(15,23,42,0.7);backdrop-filter:blur(8px);position:sticky;top:0;z-index:10}
-.header h1{font-size:20px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
-.header h1 .logo-rec{color:var(--red)}
-.header h1 .logo-hub{background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.header-right{display:flex;align-items:center;gap:12px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);background:rgba(15,23,42,0.8);backdrop-filter:blur(8px);position:sticky;top:0;z-index:10}
+.header h1{font-size:20px;font-weight:800;display:flex;align-items:center;gap:10px}
+.logo-rec{color:var(--red)}
+.logo-hub{background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hdr-right{display:flex;align-items:center;gap:10px}
 .hdr-btn{font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s}
 .hdr-btn:hover{border-color:rgba(148,163,184,0.3);color:var(--text)}
-.hdr-btn.danger{border-color:rgba(239,68,68,0.3);color:var(--red)}
-.hdr-btn.danger:hover{background:rgba(239,68,68,0.1)}
 
-/* Status bar */
-.status-bar{display:flex;gap:16px;padding:16px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.status-chip{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:6px 14px;border-radius:999px;border:1px solid var(--border);background:var(--surface)}
-.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.status-dot.on{background:var(--green);box-shadow:0 0 8px rgba(34,197,94,0.5)}
-.status-dot.off{background:var(--muted)}
-.status-dot.rec{background:var(--red);box-shadow:0 0 8px var(--rec-glow);animation:pulse-rec 1.5s infinite}
-@keyframes pulse-rec{0%,100%{box-shadow:0 0 8px var(--rec-glow)}50%{box-shadow:0 0 20px rgba(239,68,68,0.6)}}
+/* Status chips */
+.status-bar{display:flex;gap:12px;padding:14px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.chip{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 14px;border-radius:999px;border:1px solid var(--border);background:var(--surface)}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot.on{background:var(--green);box-shadow:0 0 8px rgba(34,197,94,0.5)}
+.dot.off{background:var(--muted)}
+.dot.rec{background:var(--red);box-shadow:0 0 8px var(--rec-glow);animation:pulse-rec 1.5s infinite}
+@keyframes pulse-rec{0%,100%{box-shadow:0 0 8px var(--rec-glow)}50%{box-shadow:0 0 20px rgba(239,68,68,0.65)}}
 
-/* Main grid */
-.main{display:grid;grid-template-columns:1fr 380px;gap:0;min-height:calc(100vh - 110px)}
-@media(max-width:900px){.main{grid-template-columns:1fr}}
+/* Main layout */
+.main{display:grid;grid-template-columns:1fr 360px;min-height:calc(100vh - 110px)}
+@media(max-width:860px){.main{grid-template-columns:1fr}}
 
 /* Recording panel */
-.rec-panel{padding:24px;display:flex;flex-direction:column;gap:20px}
-.rec-hero{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;text-align:center;position:relative;overflow:hidden}
-.rec-hero.is-recording{border-color:rgba(239,68,68,0.3);background:linear-gradient(135deg,rgba(239,68,68,0.04),rgba(15,23,42,1))}
-.rec-hero.is-recording::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--red),#fb923c,var(--red));background-size:200% 100%;animation:rec-bar 2s linear infinite}
+.rec-panel{padding:24px;display:flex;flex-direction:column;gap:18px}
+
+/* Hero card */
+.hero{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;text-align:center;position:relative;overflow:hidden;transition:border-color .3s}
+.hero.is-rec{border-color:rgba(239,68,68,0.35)}
+.hero.is-rec::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--red),#fb923c,var(--red));background-size:200% 100%;animation:rec-bar 2s linear infinite}
 @keyframes rec-bar{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
-.rec-indicator{width:80px;height:80px;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:36px;transition:all .3s}
-.rec-indicator.idle{background:rgba(148,163,184,0.08);border:2px solid rgba(148,163,184,0.15)}
-.rec-indicator.recording{background:rgba(239,68,68,0.12);border:2px solid rgba(239,68,68,0.4);animation:pulse-indicator 2s infinite}
-@keyframes pulse-indicator{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.indicator{width:80px;height:80px;border-radius:50%;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-size:36px;border:2px solid rgba(148,163,184,0.15);background:rgba(148,163,184,0.07);transition:all .3s}
+.indicator.is-rec{background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.4);animation:pulse-ind 2s infinite}
+@keyframes pulse-ind{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.status-label{font-size:26px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+.status-label.is-rec{color:var(--red)}
+.timer{font-family:var(--mono);font-size:42px;font-weight:700;letter-spacing:.05em;margin:10px 0}
 
-.rec-status-text{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
-.rec-status-text.recording{color:var(--red)}
-.rec-timer{font-family:var(--mono);font-size:42px;font-weight:700;letter-spacing:.05em;color:var(--text);margin:12px 0}
-.rec-session-info{margin-top:16px}
-.rec-session-title{font-size:18px;font-weight:700;margin-bottom:4px}
-.rec-session-meta{font-size:14px;color:var(--muted)}
-.rec-session-meta span{margin:0 8px}
+/* Session info block */
+.session-block{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.session-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.session-meta{font-size:13px;color:var(--muted);display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.session-meta span{display:flex;align-items:center;gap:4px}
+
+/* Up-next block */
+.upnext{background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);border-radius:10px;padding:12px 16px;text-align:left}
+.upnext .label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--blue);margin-bottom:4px}
+.upnext .title{font-size:14px;font-weight:600}
+.upnext .meta{font-size:12px;color:var(--muted);margin-top:2px}
 
 /* Controls */
-.controls{display:flex;gap:12px;justify-content:center;margin-top:20px}
-.ctrl-btn{padding:14px 32px;border-radius:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;border:none;transition:all .2s;display:flex;align-items:center;gap:8px}
-.ctrl-btn.start{background:linear-gradient(135deg,var(--red),#dc2626);color:#fff;box-shadow:0 4px 16px var(--rec-glow)}
-.ctrl-btn.start:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(239,68,68,0.4)}
-.ctrl-btn.stop{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
-.ctrl-btn.stop:hover{border-color:var(--red);color:var(--red)}
-.ctrl-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none!important}
+.controls{display:flex;gap:12px;justify-content:center;margin-top:18px}
+.ctrl{padding:13px 28px;border-radius:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;border:none;transition:all .2s;display:flex;align-items:center;gap:8px}
+.ctrl.start{background:linear-gradient(135deg,var(--red),#dc2626);color:#fff;box-shadow:0 4px 16px var(--rec-glow)}
+.ctrl.start:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(239,68,68,.45)}
+.ctrl.stop{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.ctrl.stop:hover{border-color:var(--red);color:var(--red)}
+.ctrl:disabled{opacity:.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
 
-/* Session info cards */
-.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
-.info-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
-.info-card .label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px}
-.info-card .value{font-size:16px;font-weight:700;font-family:var(--mono)}
-.info-card .value.green{color:var(--green)}
-.info-card .value.red{color:var(--red)}
-.info-card .value.amber{color:var(--amber)}
+/* Info grid */
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.icard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.icard .ilabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px}
+.icard .ivalue{font-size:15px;font-weight:700;font-family:var(--mono)}
+.icard .ivalue.green{color:var(--green)}
+.icard .ivalue.small{font-size:11px;word-break:break-all}
 
-/* Side panel */
-.side-panel{border-left:1px solid var(--border);background:rgba(15,23,42,0.5);display:flex;flex-direction:column}
-.side-header{padding:16px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);display:flex;align-items:center;justify-content:space-between}
-.side-header .count{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(148,163,184,0.08);border:1px solid var(--border)}
+/* Errors */
+.err-section{background:var(--surface);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:16px}
+.err-section h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--red);margin-bottom:10px}
+.err-item{font-size:11px;font-family:var(--mono);color:var(--red);padding:5px 10px;border-left:2px solid rgba(239,68,68,0.3);margin-bottom:4px}
+.err-ts{color:var(--muted);margin-right:8px}
 
-/* Recordings list */
-.recordings-list{flex:1;overflow-y:auto;padding:8px}
-.rec-item{padding:12px 14px;border-radius:10px;margin-bottom:4px;cursor:default;transition:background .15s}
-.rec-item:hover{background:rgba(148,163,184,0.05)}
-.rec-item .ri-name{font-size:13px;font-weight:600;margin-bottom:4px;word-break:break-all}
-.rec-item .ri-meta{font-size:11px;color:var(--muted);display:flex;gap:12px}
-.rec-item .ri-size{font-family:var(--mono)}
-
-/* Error log */
-.error-log{max-height:200px;overflow-y:auto;padding:8px}
-.error-item{font-size:11px;color:var(--red);padding:6px 12px;border-left:2px solid rgba(239,68,68,0.3);margin-bottom:4px;font-family:var(--mono)}
-.error-item .err-ts{color:var(--muted);margin-right:8px}
-
-/* Empty state */
+/* Sidebar */
+.side{border-left:1px solid var(--border);background:rgba(15,23,42,0.5);display:flex;flex-direction:column}
+.side-hdr{padding:14px 18px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.count{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(148,163,184,0.08);border:1px solid var(--border)}
+.rec-list{flex:1;overflow-y:auto;padding:8px}
+.ri{padding:11px 13px;border-radius:9px;margin-bottom:3px;transition:background .15s}
+.ri:hover{background:rgba(148,163,184,0.05)}
+.ri-name{font-size:12px;font-weight:600;margin-bottom:3px;word-break:break-all}
+.ri-meta{font-size:11px;color:var(--muted);display:flex;gap:10px;font-family:var(--mono)}
 .empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
-.empty .empty-icon{font-size:36px;margin-bottom:8px;opacity:0.4}
-
-/* Live clock */
-.live-clock{font-family:var(--mono);font-size:13px;color:var(--muted);padding:12px 20px;border-top:1px solid var(--border);text-align:center}
+.empty-icon{font-size:32px;margin-bottom:8px;opacity:.4}
+.clock{font-family:var(--mono);font-size:12px;color:var(--muted);padding:12px 18px;border-top:1px solid var(--border);text-align:center}
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <div class="header">
-  <h1>
-    <span class="logo-rec">&#9679;</span>
-    Record<span class="logo-hub">Hub</span>
-  </h1>
-  <div class="header-right">
+  <h1><span class="logo-rec">&#9679;</span> Record<span class="logo-hub">Hub</span></h1>
+  <div class="hdr-right">
     <button class="hdr-btn" onclick="reconnectObs()">Reconnect OBS</button>
     <a href="/setup" class="hdr-btn">Setup</a>
   </div>
 </div>
 
-<!-- STATUS BAR -->
 <div class="status-bar">
-  <div class="status-chip">
-    <div class="status-dot" id="dotObs"></div>
-    <span id="obsStatus">OBS: Connecting...</span>
-  </div>
-  <div class="status-chip">
-    <div class="status-dot" id="dotRoom"></div>
-    <span id="roomStatus">RoomAgent: --</span>
-  </div>
-  <div class="status-chip">
-    <div class="status-dot" id="dotHub"></div>
-    <span id="hubStatus">Hub: --</span>
-  </div>
-  <div class="status-chip">
-    <div class="status-dot" id="dotRec"></div>
-    <span id="recStatusChip">Not Recording</span>
-  </div>
+  <div class="chip"><div class="dot" id="dotObs"></div><span id="lblObs">OBS: Connecting…</span></div>
+  <div class="chip"><div class="dot" id="dotRoom"></div><span id="lblRoom">RoomAgent: --</span></div>
+  <div class="chip"><div class="dot" id="dotRec"></div><span id="lblRec">Not Recording</span></div>
 </div>
 
-<!-- MAIN -->
 <div class="main">
-
-  <!-- LEFT: Recording Panel -->
+  <!-- LEFT -->
   <div class="rec-panel">
 
-    <!-- Hero -->
-    <div class="rec-hero" id="recHero">
-      <div class="rec-indicator idle" id="recIndicator">&#9899;</div>
-      <div class="rec-status-text" id="recStatusText">IDLE</div>
-      <div class="rec-timer" id="recTimer">00:00:00</div>
+    <div class="hero" id="hero">
+      <div class="indicator" id="indicator">&#9899;</div>
+      <div class="status-label" id="statusLabel">IDLE</div>
+      <div class="timer" id="timer">00:00:00</div>
 
-      <div class="rec-session-info" id="sessionInfo" style="display:none">
-        <div class="rec-session-title" id="sessionTitle"></div>
-        <div class="rec-session-meta">
-          <span id="sessionPresenter"></span>
-          <span>|</span>
-          <span id="sessionRoom"></span>
-          <span>|</span>
-          <span id="sessionTime"></span>
+      <div class="session-block" id="sessionBlock" style="display:none">
+        <div class="session-title" id="sessTitle"></div>
+        <div class="session-meta">
+          <span id="sessPresenter"></span>
+          <span id="sessRoom"></span>
+          <span id="sessTime"></span>
         </div>
       </div>
 
       <div class="controls">
-        <button class="ctrl-btn start" id="btnStart" onclick="manualStart()">&#9679; Start Recording</button>
-        <button class="ctrl-btn stop" id="btnStop" onclick="manualStop()" disabled>&#9632; Stop</button>
+        <button class="ctrl start" id="btnStart" onclick="manualStart()">&#9679; Start Recording</button>
+        <button class="ctrl stop"  id="btnStop"  onclick="manualStop()"  disabled>&#9632; Stop</button>
       </div>
     </div>
 
-    <!-- Info Cards -->
+    <!-- Up next (from RoomAgent poll) -->
+    <div class="upnext" id="upnext" style="display:none">
+      <div class="label">Up Next</div>
+      <div class="title" id="upTitle"></div>
+      <div class="meta" id="upMeta"></div>
+    </div>
+
+    <!-- Stats -->
     <div class="info-grid">
-      <div class="info-card">
-        <div class="label">OBS Version</div>
-        <div class="value" id="infoObsVer">--</div>
-      </div>
-      <div class="info-card">
-        <div class="label">Total Recordings</div>
-        <div class="value green" id="infoTotal">0</div>
-      </div>
-      <div class="info-card">
-        <div class="label">Last Output</div>
-        <div class="value" id="infoLastFile" style="font-size:11px;word-break:break-all">--</div>
-      </div>
-      <div class="info-card">
-        <div class="label">Uptime</div>
-        <div class="value" id="infoUptime">--</div>
-      </div>
+      <div class="icard"><div class="ilabel">OBS Version</div><div class="ivalue" id="infoObs">--</div></div>
+      <div class="icard"><div class="ilabel">Recordings</div><div class="ivalue green" id="infoTotal">0</div></div>
+      <div class="icard"><div class="ilabel">Last File</div><div class="ivalue small" id="infoLast">--</div></div>
+      <div class="icard"><div class="ilabel">Uptime</div><div class="ivalue" id="infoUp">--</div></div>
     </div>
 
     <!-- Errors -->
-    <div id="errorSection" style="display:none">
-      <div class="side-header" style="padding:12px 0">Recent Errors</div>
-      <div class="error-log" id="errorLog"></div>
+    <div class="err-section" id="errSection" style="display:none">
+      <h3>Recent Errors</h3>
+      <div id="errLog"></div>
     </div>
 
   </div>
 
-  <!-- RIGHT: Recordings Sidebar -->
-  <div class="side-panel">
-    <div class="side-header">
-      Recordings
-      <span class="count" id="recCount">0</span>
+  <!-- RIGHT sidebar -->
+  <div class="side">
+    <div class="side-hdr">Recordings <span class="count" id="recCount">0</span></div>
+    <div class="rec-list" id="recList">
+      <div class="empty"><div class="empty-icon">&#127909;</div>No recordings yet</div>
     </div>
-    <div class="recordings-list" id="recordingsList">
-      <div class="empty">
-        <div class="empty-icon">&#127909;</div>
-        No recordings yet
-      </div>
-    </div>
-    <div class="live-clock" id="liveClock"></div>
+    <div class="clock" id="clock"></div>
   </div>
-
 </div>
 
 <script>
@@ -215,209 +180,164 @@ let recStartedAt = null;
 let timerInterval = null;
 
 function fmt(n){ return String(n).padStart(2,"0"); }
-function formatDuration(ms){
-  const s=Math.floor(ms/1000);
+function fmtDur(ms){
+  const s = Math.floor(ms/1000);
   return fmt(Math.floor(s/3600))+":"+fmt(Math.floor((s%3600)/60))+":"+fmt(s%60);
 }
-function formatUptime(sec){
-  if(sec<60) return Math.floor(sec)+"s";
-  if(sec<3600) return Math.floor(sec/60)+"m";
-  return Math.floor(sec/3600)+"h "+Math.floor((sec%3600)/60)+"m";
+function fmtUp(s){
+  if(s<60) return Math.floor(s)+"s";
+  if(s<3600) return Math.floor(s/60)+"m";
+  return Math.floor(s/3600)+"h "+Math.floor((s%3600)/60)+"m";
 }
 function relTime(iso){
-  const d=new Date(iso);
-  const s=Math.floor((Date.now()-d)/1000);
+  const d=new Date(iso), s=Math.floor((Date.now()-d)/1000);
   if(s<60) return s+"s ago";
   if(s<3600) return Math.floor(s/60)+"m ago";
   return d.toLocaleTimeString();
 }
+function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function $(id){ return document.getElementById(id); }
 
 // Clock
 setInterval(()=>{
-  const now=new Date();
-  document.getElementById("liveClock").textContent=
-    now.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})+"  "+
-    now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",second:"2-digit"});
+  const n=new Date();
+  $("clock").textContent = n.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})
+    + "  " + n.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",second:"2-digit"});
 },1000);
 
 // Timer
-function startTimer(){
-  recStartedAt=Date.now();
+function startTimer(fromMs){
+  recStartedAt = fromMs || Date.now();
   clearInterval(timerInterval);
-  timerInterval=setInterval(()=>{
-    document.getElementById("recTimer").textContent=formatDuration(Date.now()-recStartedAt);
-  },1000);
+  timerInterval = setInterval(()=> $("timer").textContent = fmtDur(Date.now()-recStartedAt), 1000);
 }
 function stopTimer(){
-  clearInterval(timerInterval);
-  timerInterval=null;
-  recStartedAt=null;
-  document.getElementById("recTimer").textContent="00:00:00";
+  clearInterval(timerInterval); timerInterval=null; recStartedAt=null;
+  $("timer").textContent = "00:00:00";
 }
 
-// Refresh
 async function refresh(){
   try{
-    const r=await fetch("/api/status");
-    const d=await r.json();
+    const d = await fetch("/api/status").then(r=>r.json());
     if(!d.ok) return;
 
-    // OBS status
-    const dotObs=document.getElementById("dotObs");
-    const obsText=document.getElementById("obsStatus");
-    dotObs.className="status-dot "+(d.obsConnected?"on":"off");
-    obsText.textContent="OBS: "+(d.obsConnected?(d.obsVersion||"Connected"):"Disconnected");
-    document.getElementById("infoObsVer").textContent=d.obsVersion||"--";
+    // OBS chip
+    $("dotObs").className = "dot " + (d.obsConnected?"on":"off");
+    $("lblObs").textContent = "OBS: " + (d.obsConnected ? (d.obsVersion||"Connected") : "Disconnected");
+    $("infoObs").textContent = d.obsVersion||"--";
 
-    // RoomAgent
-    const dotRoom=document.getElementById("dotRoom");
-    const roomText=document.getElementById("roomStatus");
-    const pollAge=d.lastPollAt?Date.now()-d.lastPollAt:99999;
-    dotRoom.className="status-dot "+(pollAge<15000?"on":"off");
-    roomText.textContent="RoomAgent: "+(pollAge<15000?"Polling":"No Data");
-
-    // Hub heartbeat
-    const dotHub=document.getElementById("dotHub");
-    const hubText=document.getElementById("hubStatus");
-    const hbAge=d.lastHeartbeatAt?Date.now()-d.lastHeartbeatAt:99999;
-    dotHub.className="status-dot "+(hbAge<30000?"on":"off");
-    hubText.textContent="Hub: "+(hbAge<30000?"Connected":"--");
+    // RoomAgent chip
+    const raAge = d.lastPollAt ? Date.now()-d.lastPollAt : 99999;
+    $("dotRoom").className = "dot " + (raAge<15000?"on":"off");
+    $("lblRoom").textContent = "RoomAgent: " + (raAge<15000?"Active":"No data");
 
     // Recording state
-    const dotRec=document.getElementById("dotRec");
-    const recChip=document.getElementById("recStatusChip");
-    const hero=document.getElementById("recHero");
-    const indicator=document.getElementById("recIndicator");
-    const statusText=document.getElementById("recStatusText");
-    const sessionInfo=document.getElementById("sessionInfo");
-    const btnStart=document.getElementById("btnStart");
-    const btnStop=document.getElementById("btnStop");
+    const hero=$("hero"), ind=$("indicator"), lbl=$("statusLabel");
+    const bs=$("btnStart"), bst=$("btnStop"), rc=$("dotRec");
 
     if(d.recording){
-      dotRec.className="status-dot rec";
-      recChip.textContent="RECORDING";
-      hero.className="rec-hero is-recording";
-      indicator.className="rec-indicator recording";
-      indicator.innerHTML="&#9679;";
-      statusText.textContent="RECORDING";
-      statusText.className="rec-status-text recording";
-      btnStart.disabled=true;
-      btnStop.disabled=false;
-
-      if(d.recordingStartedAt && !recStartedAt){
-        recStartedAt=d.recordingStartedAt;
-        clearInterval(timerInterval);
-        timerInterval=setInterval(()=>{
-          document.getElementById("recTimer").textContent=formatDuration(Date.now()-recStartedAt);
-        },1000);
-      }
+      rc.className="dot rec"; $("lblRec").textContent="RECORDING";
+      hero.className="hero is-rec"; ind.className="indicator is-rec"; ind.innerHTML="&#9679;";
+      lbl.textContent="RECORDING"; lbl.className="status-label is-rec";
+      bs.disabled=true; bst.disabled=false;
+      if(d.recordingStartedAt && !recStartedAt) startTimer(d.recordingStartedAt);
     }else{
-      dotRec.className="status-dot off";
-      recChip.textContent="Not Recording";
-      hero.className="rec-hero";
-      indicator.className="rec-indicator idle";
-      indicator.innerHTML="&#9899;";
-      statusText.textContent="IDLE";
-      statusText.className="rec-status-text";
-      btnStart.disabled=!d.obsConnected;
-      btnStop.disabled=true;
-      if(recStartedAt){ stopTimer(); }
+      rc.className="dot off"; $("lblRec").textContent="Not Recording";
+      hero.className="hero"; ind.className="indicator"; ind.innerHTML="&#9899;";
+      lbl.textContent="IDLE"; lbl.className="status-label";
+      bs.disabled=!d.obsConnected; bst.disabled=true;
+      if(recStartedAt) stopTimer();
     }
 
-    // Session info
+    // Current session
     if(d.currentSession){
-      sessionInfo.style.display="block";
-      document.getElementById("sessionTitle").textContent=d.currentSession.title||"Untitled";
-      document.getElementById("sessionPresenter").textContent=d.currentSession.presenter||"--";
-      document.getElementById("sessionRoom").textContent=d.currentSession.room||"--";
-      document.getElementById("sessionTime").textContent=d.currentSession.start||"--";
+      $("sessionBlock").style.display="block";
+      $("sessTitle").textContent = d.currentSession.title||"Untitled";
+      $("sessPresenter").textContent = d.currentSession.presenter||"";
+      $("sessRoom").textContent = d.currentSession.room||"";
+      $("sessTime").textContent = d.currentSession.start||"";
     }else{
-      sessionInfo.style.display="none";
+      $("sessionBlock").style.display="none";
     }
 
-    // Info cards
-    document.getElementById("infoTotal").textContent=String(d.totalRecordings);
-    document.getElementById("infoUptime").textContent=formatUptime(d.uptime);
+    // Up next (polled session when not recording)
+    if(!d.recording && d.polledSession){
+      $("upnext").style.display="block";
+      $("upTitle").textContent = d.polledSession.title||"";
+      $("upMeta").textContent = [d.polledSession.presenter, d.polledSession.start].filter(Boolean).join(" · ");
+    }else{
+      $("upnext").style.display="none";
+    }
+
+    // Stats
+    $("infoTotal").textContent = String(d.totalRecordings);
+    $("infoUp").textContent = fmtUp(d.uptime);
     if(d.lastOutputPath){
-      const parts=d.lastOutputPath.replace(/\\/g,"/").split("/");
-      document.getElementById("infoLastFile").textContent=parts.slice(-2).join("/");
+      const parts = d.lastOutputPath.replace(/\\/g,"/").split("/");
+      $("infoLast").textContent = parts.slice(-2).join("/");
     }
 
     // Errors
-    const errSection=document.getElementById("errorSection");
-    const errLog=document.getElementById("errorLog");
-    if(d.errors&&d.errors.length){
-      errSection.style.display="block";
-      errLog.innerHTML=d.errors.map(e=>
-        `<div class="error-item"><span class="err-ts">${new Date(e.ts).toLocaleTimeString()}</span>${e.msg}</div>`
+    if(d.errors?.length){
+      $("errSection").style.display="block";
+      $("errLog").innerHTML = d.errors.map(e=>
+        `<div class="err-item"><span class="err-ts">${new Date(e.ts).toLocaleTimeString()}</span>${esc(e.msg)}</div>`
       ).join("");
     }else{
-      errSection.style.display="none";
+      $("errSection").style.display="none";
     }
-
-  }catch(e){
-    document.getElementById("dotObs").className="status-dot off";
+  }catch{
+    $("dotObs").className="dot off";
   }
 
   // Recordings list
   try{
-    const r=await fetch("/api/recordings");
-    const d=await r.json();
-    const list=document.getElementById("recordingsList");
-    const countEl=document.getElementById("recCount");
-    if(d.ok&&d.recordings&&d.recordings.length){
-      countEl.textContent=String(d.total);
-      list.innerHTML=d.recordings.slice(0,50).map(r=>`
-        <div class="rec-item">
+    const d = await fetch("/api/recordings").then(r=>r.json());
+    if(!d.ok) return;
+    $("recCount").textContent = String(d.total||0);
+    if(d.recordings?.length){
+      $("recList").innerHTML = d.recordings.slice(0,60).map(r=>`
+        <div class="ri">
           <div class="ri-name">${esc(r.name)}</div>
-          <div class="ri-meta">
-            <span class="ri-size">${r.sizeHuman}</span>
-            <span>${relTime(r.created)}</span>
-          </div>
-        </div>
-      `).join("");
+          <div class="ri-meta"><span>${r.sizeHuman}</span><span>${relTime(r.created)}</span></div>
+        </div>`).join("");
     }else{
-      countEl.textContent="0";
-      list.innerHTML='<div class="empty"><div class="empty-icon">&#127909;</div>No recordings yet</div>';
+      $("recList").innerHTML = '<div class="empty"><div class="empty-icon">&#127909;</div>No recordings yet</div>';
     }
   }catch{}
 }
 
-function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-
 async function manualStart(){
-  const title=prompt("Session title (or leave blank):","Manual Recording");
-  if(title===null) return;
+  const title = prompt("Session title:", "Manual Recording");
+  if(title === null) return;
   try{
-    const r=await fetch("/api/record/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:title||"Manual Recording"})});
-    const d=await r.json();
+    const d = await fetch("/api/record/start",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ title: title||"Manual Recording" }),
+    }).then(r=>r.json());
     if(!d.ok) alert(d.error||"Failed to start");
-    startTimer();
-    refresh();
-  }catch(e){alert("Error: "+e.message);}
+    else { startTimer(); refresh(); }
+  }catch(e){ alert("Error: "+e.message); }
 }
 
 async function manualStop(){
   if(!confirm("Stop recording?")) return;
   try{
-    await fetch("/api/record/stop",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({})});
-    stopTimer();
-    refresh();
-  }catch(e){alert("Error: "+e.message);}
+    await fetch("/api/record/stop",{ method:"POST", headers:{"Content-Type":"application/json"}, body:"{}" });
+    stopTimer(); refresh();
+  }catch(e){ alert("Error: "+e.message); }
 }
 
 async function reconnectObs(){
   try{
-    const r=await fetch("/api/obs/reconnect",{method:"POST"});
-    const d=await r.json();
-    alert(d.connected?"OBS Connected!":"OBS connection failed: "+(d.error||"unknown"));
+    const d = await fetch("/api/obs/reconnect",{method:"POST"}).then(r=>r.json());
+    alert(d.connected ? "OBS Connected!" : "Failed: "+(d.error||"unknown"));
     refresh();
-  }catch(e){alert("Error: "+e.message);}
+  }catch(e){ alert("Error: "+e.message); }
 }
 
-// Init
 refresh();
-setInterval(refresh,3000);
+setInterval(refresh, 3000);
 </script>
 </body>
 </html>
