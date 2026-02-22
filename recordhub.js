@@ -287,9 +287,21 @@ async function obsSetupScenes() {
   if (!obs || !STATE.obsConnected) throw new Error("OBS not connected");
   const cfg = readConfig();
 
-  const SCENE   = cfg.pipSceneName;
-  const W       = cfg.canvasWidth  || 1920;
-  const H       = cfg.canvasHeight || 1080;
+  const SCENE = cfg.pipSceneName;
+
+  // Always read actual canvas dimensions from OBS — if the config value differs
+  // from OBS (e.g. OBS is 1280×720 but config says 1920×1080), the lower third
+  // ends up positioned off-screen and is completely invisible.
+  let W = cfg.canvasWidth  || 1920;
+  let H = cfg.canvasHeight || 1080;
+  try {
+    const vs = await obs.call("GetVideoSettings");
+    W = vs.baseWidth  || W;
+    H = vs.baseHeight || H;
+    log("OBS SETUP: canvas from OBS →", W + "×" + H);
+  } catch (e) {
+    log("OBS SETUP: could not read canvas size, using config →", W + "×" + H, "(" + e.message + ")");
+  }
   const SLIDES  = "Slides";
   const CAM     = "Presenter Cam";
   const LT_BG   = "Lower Third BG";
@@ -427,7 +439,10 @@ async function obsSetupScenes() {
   }
 
   // ── 4. Lower Third BG ──
-  const ltBgId = await upsertInput(LT_BG, colorKind, { color: 3422552064 }, false);
+  // 0xFF1A237E = full opacity (0xFF alpha), dark indigo-blue (R=1A G=23 B=7E).
+  // Using full opacity avoids transparency issues that made the previous semi-transparent
+  // black (0xCC000000) appear invisible depending on the OBS canvas background.
+  const ltBgId = await upsertInput(LT_BG, colorKind, { color: 0xFF1A237E }, false);
   await obs.call("SetSceneItemTransform", {
     sceneName: SCENE, sceneItemId: ltBgId,
     sceneItemTransform: { positionX: 0, positionY: LT_Y, alignment: 5,
