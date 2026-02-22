@@ -336,8 +336,34 @@ async function obsSetupScenes() {
   log("OBS SETUP: using →", { colorKind, textKind, camKind, hasBrowser, fadeFilterKind });
 
   // ── helpers ──
-  async function removeInput(name) {
-    try { await obs.call("RemoveInput", { inputName: name }); } catch {}
+
+  // Upsert: create the input if it doesn't exist, otherwise update its settings.
+  // Returns the sceneItemId so transforms can be applied immediately.
+  // This avoids "source already exists" errors when rebuilding the scene.
+  async function upsertInput(inName, inKind, inSettings, enabled) {
+    try {
+      // Happy path: source doesn't exist yet
+      const r = await obs.call("CreateInput", {
+        sceneName: SCENE, inputName: inName, inputKind: inKind,
+        inputSettings: inSettings, sceneItemEnabled: enabled,
+      });
+      return r.sceneItemId;
+    } catch {
+      // Source already exists — update its settings instead
+      try { await obs.call("SetInputSettings", { inputName: inName, inputSettings: inSettings }); } catch {}
+      // Get or add its scene item in this scene
+      try {
+        const { sceneItemId } = await obs.call("GetSceneItemId", { sceneName: SCENE, sourceName: inName });
+        try { await obs.call("SetSceneItemEnabled", { sceneName: SCENE, sceneItemId, sceneItemEnabled: enabled !== false }); } catch {}
+        return sceneItemId;
+      } catch {
+        // Not in this scene yet — add it
+        const { sceneItemId } = await obs.call("CreateSceneItem", {
+          sceneName: SCENE, sourceName: inName, sceneItemEnabled: enabled,
+        });
+        return sceneItemId;
+      }
+    }
   }
 
   async function addFadeFilter(srcName) {
@@ -350,24 +376,17 @@ async function obsSetupScenes() {
     });
   }
 
-  // ── 1. Create or clear the scene ──
+  // ── 1. Create scene if it doesn't exist (idempotent) ──
   try {
     await obs.call("CreateScene", { sceneName: SCENE });
     log("OBS SETUP: scene created —", SCENE);
   } catch {
-    log("OBS SETUP: scene exists, clearing items");
-    try {
-      const { sceneItems } = await obs.call("GetSceneItemList", { sceneName: SCENE });
-      for (const item of sceneItems) {
-        await obs.call("RemoveSceneItem", { sceneName: SCENE, sceneItemId: item.sceneItemId });
-      }
-    } catch {}
+    log("OBS SETUP: scene already exists — updating sources in place");
   }
 
   const warnings = [];
 
   // ── 2. Slides ──
-  await removeInput(SLIDES);
   let slidesKind, slidesSettings;
   if (cfg.slidesUrl && hasBrowser) {
     slidesKind = "browser_source";
@@ -379,33 +398,26 @@ async function obsSetupScenes() {
     };
   } else {
     if (cfg.slidesUrl && !hasBrowser) {
-      warnings.push("browser_source plugin not found in OBS — using monitor capture instead. Install obs-browser to use the kiosk URL.");
+      warnings.push("browser_source not found in OBS — using monitor capture. Install obs-browser to use the kiosk URL.");
     }
     slidesKind = "monitor_capture";
     slidesSettings = { monitor: cfg.slidesMonitor ?? 0 };
   }
-  const slides = await obs.call("CreateInput", {
-    sceneName: SCENE, inputName: SLIDES,
-    inputKind: slidesKind, inputSettings: slidesSettings, sceneItemEnabled: true,
-  });
+  const slidesId = await upsertInput(SLIDES, slidesKind, slidesSettings, true);
   await obs.call("SetSceneItemTransform", {
-    sceneName: SCENE, sceneItemId: slides.sceneItemId,
+    sceneName: SCENE, sceneItemId: slidesId,
     sceneItemTransform: { positionX: 0, positionY: 0, alignment: 5,
       boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: W, boundsHeight: H },
   });
   log("OBS SETUP: slides →", slidesKind, cfg.slidesUrl || `monitor ${cfg.slidesMonitor ?? 0}`);
 
   // ── 3. Presenter Cam PiP ──
-  await removeInput(CAM);
   try {
     const camSettings = {};
     if (cfg.cameraDevice) camSettings.video_device_id = cfg.cameraDevice;
-    const cam = await obs.call("CreateInput", {
-      sceneName: SCENE, inputName: CAM,
-      inputKind: camKind, inputSettings: camSettings, sceneItemEnabled: true,
-    });
+    const camId = await upsertInput(CAM, camKind, camSettings, true);
     await obs.call("SetSceneItemTransform", {
-      sceneName: SCENE, sceneItemId: cam.sceneItemId,
+      sceneName: SCENE, sceneItemId: camId,
       sceneItemTransform: { positionX: PIP_X, positionY: PIP_Y, alignment: 5,
         boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: PIP_W, boundsHeight: PIP_H },
     });
@@ -416,34 +428,24 @@ async function obsSetupScenes() {
   }
 
   // ── 4. Lower Third BG ──
-  await removeInput(LT_BG);
-  const ltBg = await obs.call("CreateInput", {
-    sceneName: SCENE, inputName: LT_BG,
-    inputKind: colorKind, inputSettings: { color: 3422552064 }, sceneItemEnabled: false,
-  });
+  const ltBgId = await upsertInput(LT_BG, colorKind, { color: 3422552064 }, false);
   await obs.call("SetSceneItemTransform", {
-    sceneName: SCENE, sceneItemId: ltBg.sceneItemId,
+    sceneName: SCENE, sceneItemId: ltBgId,
     sceneItemTransform: { positionX: 0, positionY: LT_Y, alignment: 5,
       boundsType: "OBS_BOUNDS_STRETCH", boundsWidth: W, boundsHeight: LT_H },
   });
   await addFadeFilter(LT_BG);
 
-  // ── 5. Lower Third text — font 40 px to fit presenter · title · time ──
-  await removeInput(LT_TEXT);
-  const ltText = await obs.call("CreateInput", {
-    sceneName: SCENE, inputName: LT_TEXT,
-    inputKind: textKind,
-    inputSettings: {
-      text: "",
-      font: { face: "Arial", size: 40, style: "Bold", flags: 0 },
-      color: 4294967295, outline: true,
-      outline_color: 4278190080, outline_size: 3,
-      extents: true, extents_cx: W - 60, extents_cy: LT_H - 16, extents_wrap: false,
-    },
-    sceneItemEnabled: false,
-  });
+  // ── 5. Lower Third text — 40 px to fit presenter · title · time ──
+  const ltTextId = await upsertInput(LT_TEXT, textKind, {
+    text: "",
+    font: { face: "Arial", size: 40, style: "Bold", flags: 0 },
+    color: 4294967295, outline: true,
+    outline_color: 4278190080, outline_size: 3,
+    extents: true, extents_cx: W - 60, extents_cy: LT_H - 16, extents_wrap: false,
+  }, false);
   await obs.call("SetSceneItemTransform", {
-    sceneName: SCENE, sceneItemId: ltText.sceneItemId,
+    sceneName: SCENE, sceneItemId: ltTextId,
     sceneItemTransform: { positionX: 30, positionY: LT_Y + 12, alignment: 5,
       boundsType: "OBS_BOUNDS_NONE" },
   });
