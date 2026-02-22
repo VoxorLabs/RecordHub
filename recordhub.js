@@ -215,15 +215,31 @@ async function obsShowLowerThird(title, presenter, startTime) {
   const parts = [presenter, title, startTime].filter(Boolean);
   const text = parts.join("  ·  ");
 
+  const SCENE = cfg.pipSceneName;
+
   try {
-    // Update text content
-    await obs.call("SetInputSettings", {
-      inputName: cfg.titleSourceName,
-      inputSettings: { text },
-    });
+    // Update text content.
+    // If the source doesn't exist yet, auto-build the scene then retry once.
+    try {
+      await obs.call("SetInputSettings", {
+        inputName: cfg.titleSourceName,
+        inputSettings: { text },
+      });
+    } catch (e) {
+      if (/not found|no source/i.test(e.message || "")) {
+        log("LOWER THIRD: source missing — running scene auto-setup");
+        try { await obsSetupScenes(); } catch (se) { log("LOWER THIRD: auto-setup error —", se.message); }
+        // Retry after setup
+        await obs.call("SetInputSettings", {
+          inputName: cfg.titleSourceName,
+          inputSettings: { text },
+        });
+      } else {
+        throw e;
+      }
+    }
 
     // Reveal: enable scene items + set filter opacity to 1.0
-    const SCENE = cfg.pipSceneName;
     for (const srcName of [cfg.titleSourceName, "Lower Third BG"]) {
       // Primary: scene item enable (always works)
       try {
@@ -588,6 +604,13 @@ function findCurrentSession(sessions) {
 
 async function pollRoomAgent() {
   const cfg = readConfig();
+
+  // Skip polling if roomAgentBase is the install placeholder
+  if (!cfg.roomAgentBase || /10\.0\.0\.X/i.test(cfg.roomAgentBase)) {
+    if (cfg.verbose) log("POLL SKIP: roomAgentBase not configured — set it in /setup");
+    return;
+  }
+
   try {
     const res = await fetch(`${cfg.roomAgentBase}/api/kiosk-data`, {
       signal: AbortSignal.timeout(4000),
@@ -653,7 +676,7 @@ async function pollRoomAgent() {
       STATE.currentSession = null;
     }
   } catch (e) {
-    if (cfg.verbose) log("POLL ERROR", e.message);
+    if (cfg.verbose) log("POLL ERROR", cfg.roomAgentBase, "—", e.message);
   }
 }
 
