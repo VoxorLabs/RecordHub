@@ -586,7 +586,9 @@ function parseTime(dateStr, timeStr) {
 function findCurrentSession(sessions) {
   if (!sessions || !sessions.length) return { session: null, nextStart: null };
   const now = new Date();
-  const todayStr = now.toISOString().split("T")[0];
+  // Use LOCAL date, not UTC. toISOString() gives UTC which in US timezones flips
+  // to "tomorrow" in the afternoon, causing all sessions to be filtered out.
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   const today = sessions
     .filter(s => (s.date || "") === todayStr)
