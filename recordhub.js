@@ -384,8 +384,9 @@ async function obsSetupScenes() {
   // Only create the software Slides source if a slidesUrl is configured.
   // Users feeding slides via a hardware capture card (HDMI from RoomPC) manage
   // that source themselves — Build Scene should not touch or recreate it.
+  let slidesKind = null;
   if (cfg.slidesUrl) {
-    let slidesKind, slidesSettings;
+    let slidesSettings;
     if (hasBrowser) {
       slidesKind = "browser_source";
       slidesSettings = {
