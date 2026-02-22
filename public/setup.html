@@ -110,8 +110,10 @@ h1{font-size:26px;font-weight:800;margin-bottom:6px;display:flex;align-items:cen
     <div class="hrow"><div class="hdot warn"></div><div class="hlabel">Loading…</div></div>
   </div>
   <div class="actions">
-    <button class="btn btn-amber" id="btnTestLT" onclick="testLowerThird()" disabled>Test Lower Third (10 s)</button>
+    <button class="btn btn-amber" id="btnTestLT" onclick="testLowerThird()" disabled>Test Lower Third</button>
+    <button class="btn btn-outline" id="btnDebug" onclick="runDebug()" style="display:none">Diagnose OBS</button>
   </div>
+  <div id="ltSteps" style="margin-top:12px;display:none"></div>
 </div>
 
 <!-- ═══ 1. OBS Studio ═══ -->
@@ -264,6 +266,7 @@ async function refreshHealth(){
       </div>`).join("");
     const obsOk = d.checks.find(c => c.key === "obs")?.ok;
     $("btnTestLT").disabled = !obsOk;
+    $("btnDebug").style.display = obsOk ? "inline-flex" : "none";
   }catch{}
 }
 
@@ -340,12 +343,37 @@ async function testRoomAgent(){
 
 // ─── Test lower third ───
 async function testLowerThird(){
-  showToast("Showing lower third in OBS…", "ok");
+  const stepsEl = $("ltSteps");
+  stepsEl.style.display = "block";
+  stepsEl.innerHTML = '<div style="font-size:12px;color:var(--muted);font-family:var(--mono)">Running…</div>';
+  $("btnTestLT").disabled = true;
   try{
     const d = await fetch("/api/obs/test-lower-third", { method:"POST" }).then(r => r.json());
-    if(d.ok) showToast("Lower third shown! Fades after 10 s.", "ok");
-    else showToast("Error: " + (d.error || "failed"), "err");
-  }catch(e){ showToast("Error: " + e.message, "err"); }
+    if(d.steps){
+      stepsEl.innerHTML = d.steps.map(s =>
+        `<div style="font-size:12px;font-family:var(--mono);padding:3px 0;color:${s.ok?"var(--green)":"var(--red)"}">
+          ${s.ok ? "✓" : "✗"} ${s.msg}
+        </div>`
+      ).join("");
+    }
+    if(d.ok) showToast("Lower third shown — check OBS preview", "ok");
+    else showToast("Lower third failed — see steps above", "err");
+  }catch(e){
+    stepsEl.innerHTML = `<div style="font-size:12px;font-family:var(--mono);color:var(--red)">✗ ${e.message}</div>`;
+    showToast("Error: " + e.message, "err");
+  } finally {
+    $("btnTestLT").disabled = false;
+  }
+}
+
+// ─── Diagnose OBS ───
+async function runDebug(){
+  try{
+    const d = await fetch("/api/obs/debug").then(r => r.json());
+    const stepsEl = $("ltSteps");
+    stepsEl.style.display = "block";
+    stepsEl.innerHTML = `<pre style="font-size:11px;font-family:var(--mono);color:var(--muted);white-space:pre-wrap;word-break:break-all">${JSON.stringify(d,null,2)}</pre>`;
+  }catch(e){ showToast("Debug failed: " + e.message, "err"); }
 }
 
 // ─── Init ───

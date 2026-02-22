@@ -158,35 +158,62 @@ async function obsStopRecord() {
 }
 
 // ─── Lower Third ─────────────────────────────────────────────────────────────
-// Auto-injects into the current OBS program scene. No pre-setup required.
-// Called automatically on every trigger-start; hidden 10 seconds later.
+// Auto-injects into the current OBS program scene on every recording start.
+// No pre-setup required. Hides automatically after 10 seconds.
 
 let ltFadeTimer = null;
 
-// Upsert a source into a scene: creates it if new, updates settings if existing.
-// Returns the sceneItemId.
-async function upsertSource(scene, name, kind, settings) {
-  // Try create fresh
+// Upsert a source into a scene.
+//   kinds  — array of input kind strings to try in order (first that works wins)
+//   settings — input settings object
+// Strategy:
+//   1. Probe with SetInputSettings — if it succeeds the source already exists globally.
+//   2. If source doesn't exist, try CreateInput with each kind until one succeeds.
+//   3. Once the source exists globally, ensure it's in this scene via GetSceneItemId
+//      or CreateSceneItem.
+async function upsertSource(scene, name, kinds, settings) {
+  // Step 1: Probe — does this source already exist globally?
+  let existsGlobally = false;
   try {
-    const r = await obs.call("CreateInput", {
-      sceneName: scene, inputName: name, inputKind: kind,
-      inputSettings: settings, sceneItemEnabled: false,
-    });
-    return r.sceneItemId;
+    await obs.call("SetInputSettings", { inputName: name, inputSettings: settings });
+    existsGlobally = true;
+    log("LT upsert: exists — updated settings for", name);
   } catch {
-    // Already exists — update settings
-    try { await obs.call("SetInputSettings", { inputName: name, inputSettings: settings }); } catch {}
-    // Get scene item ID in this scene
-    try {
-      const { sceneItemId } = await obs.call("GetSceneItemId", { sceneName: scene, sourceName: name });
-      return sceneItemId;
-    } catch {
-      // Source exists globally but not in this scene — add it
-      const { sceneItemId } = await obs.call("CreateSceneItem", {
-        sceneName: scene, sourceName: name, sceneItemEnabled: false,
-      });
-      return sceneItemId;
+    // Source doesn't exist yet — we'll create it below
+  }
+
+  if (!existsGlobally) {
+    // Step 2: Create source, trying each kind in order until one works
+    let created = false;
+    for (const kind of kinds) {
+      try {
+        const r = await obs.call("CreateInput", {
+          sceneName: scene, inputName: name, inputKind: kind,
+          inputSettings: settings, sceneItemEnabled: false,
+        });
+        log("LT upsert: created", name, "kind=" + kind, "id=" + r.sceneItemId);
+        return r.sceneItemId;   // CreateInput also adds it to the scene, so we're done
+      } catch (e) {
+        log("LT upsert: kind", kind, "failed —", e.message);
+      }
     }
+    if (!created) {
+      throw new Error(`Cannot create "${name}" — tried kinds: ${kinds.join(", ")}`);
+    }
+  }
+
+  // Step 3: Source exists globally. Get its scene item in this scene.
+  try {
+    const { sceneItemId } = await obs.call("GetSceneItemId", { sceneName: scene, sourceName: name });
+    log("LT upsert: found in scene —", name, "id=" + sceneItemId);
+    return sceneItemId;
+  } catch {
+    // Not in this scene yet — add it
+    const { sceneItemId } = await obs.call("CreateSceneItem", {
+      sceneName: scene, sourceName: name, sceneItemEnabled: false,
+    });
+    log("LT upsert: added to scene —", name, "id=" + sceneItemId);
+    return sceneItemId;
   }
 }
 
@@ -195,37 +222,32 @@ async function showLowerThird(title, presenter, startTime) {
   if (ltFadeTimer) { clearTimeout(ltFadeTimer); ltFadeTimer = null; }
 
   const text = [presenter, title, startTime].filter(Boolean).join("  ·  ");
-  log("LT: showing —", text);
+  log("LT: starting injection — text:", text);
 
   try {
-    // 1. Read actual OBS canvas — never guess or use config
+    // 1. Read actual OBS canvas size
     let W = 1920, H = 1080;
     try {
       const vs = await obs.call("GetVideoSettings");
       W = vs.baseWidth  || W;
       H = vs.baseHeight || H;
-    } catch {}
+    } catch (e) { log("LT: GetVideoSettings failed —", e.message, "— using", W + "×" + H); }
+    log("LT: canvas =", W + "×" + H);
 
-    // 2. Current program scene — lower third goes wherever OBS is pointing
+    // 2. Current program scene
     const { currentProgramSceneName: scene } = await obs.call("GetCurrentProgramScene");
     STATE.ltScene = scene;
-
-    // 3. Detect available source kinds
-    let kinds = new Set();
-    try {
-      const { inputKinds } = await obs.call("GetInputKindList", { unversioned: false });
-      kinds = new Set(inputKinds);
-    } catch {}
-    const pick  = (...cs) => cs.find(k => kinds.has(k)) || cs[0];
-    const colorKind = pick("color_source_v3", "color_source_v2", "color_source");
-    const textKind  = pick("text_gdiplus_v2", "text_gdiplus", "text_ft2_source");
-    log("LT: canvas=" + W + "×" + H, "scene=" + scene, "text=" + textKind);
+    log("LT: scene =", scene);
 
     const LT_H = 90;
     const LT_Y = H - LT_H - 10;
+    log("LT: strip Y =", LT_Y, "(H=" + H + " LT_H=" + LT_H + ")");
 
-    // 4. Lower Third BG — solid opaque dark blue strip
-    const bgId = await upsertSource(scene, LT_BG, colorKind, { color: 0xFF1A237E });
+    // 3. Lower Third BG — try all color source kinds in order
+    const bgId = await upsertSource(scene, LT_BG,
+      ["color_source_v3", "color_source_v2", "color_source"],
+      { color: 0xFF1A237E }
+    );
     await obs.call("SetSceneItemTransform", {
       sceneName: scene, sceneItemId: bgId,
       sceneItemTransform: {
@@ -233,24 +255,31 @@ async function showLowerThird(title, presenter, startTime) {
         boundsType: "OBS_BOUNDS_STRETCH", boundsWidth: W, boundsHeight: LT_H,
       },
     });
+    log("LT: BG positioned id=" + bgId);
     try { await obs.call("RemoveSourceFilter", { sourceName: LT_BG, filterName: "Fade" }); } catch {}
 
-    // 5. Lower Third text — white bold Arial, set text content on every call
-    const textId = await upsertSource(scene, LT_TEXT, textKind, {
-      text,
-      font: { face: "Arial", size: 40, style: "Bold", flags: 0 },
-      color:  4294967295,   // 0xFFFFFFFF white (text_gdiplus v1)
-      color1: 4294967295,   // 0xFFFFFFFF white (text_gdiplus_v2)
-      outline: true, outline_color: 4278190080, outline_size: 3,
-      extents: true, extents_cx: W - 60, extents_cy: LT_H - 16, extents_wrap: false,
-    });
+    // 4. Lower Third text — try all text source kinds in order
+    //    color + color1: both set so it works for text_gdiplus (v1 uses "color")
+    //    and text_gdiplus_v2 (uses "color1"). White = 0xFFFFFFFF for both.
+    const textId = await upsertSource(scene, LT_TEXT,
+      ["text_gdiplus_v2", "text_gdiplus", "text_ft2_source_v2", "text_ft2_source"],
+      {
+        text,
+        font: { face: "Arial", size: 40, style: "Bold", flags: 0 },
+        color:  4294967295,  // white — text_gdiplus v1
+        color1: 4294967295,  // white — text_gdiplus_v2
+        outline: true, outline_color: 4278190080, outline_size: 3,
+        extents: true, extents_cx: W - 60, extents_cy: LT_H - 16, extents_wrap: false,
+      }
+    );
     await obs.call("SetSceneItemTransform", {
       sceneName: scene, sceneItemId: textId,
       sceneItemTransform: { positionX: 30, positionY: LT_Y + 12, alignment: 5, boundsType: "OBS_BOUNDS_NONE" },
     });
+    log("LT: text positioned id=" + textId);
     try { await obs.call("RemoveSourceFilter", { sourceName: LT_TEXT, filterName: "Fade" }); } catch {}
 
-    // 6. Ensure text is ABOVE the BG in z-order (higher index = rendered on top)
+    // 5. Ensure text is ABOVE BG in z-order (higher sceneItemIndex = rendered on top in OBS)
     try {
       const { sceneItems } = await obs.call("GetSceneItemList", { sceneName: scene });
       const bg = sceneItems.find(i => i.sourceName === LT_BG);
@@ -259,15 +288,17 @@ async function showLowerThird(title, presenter, startTime) {
         await obs.call("SetSceneItemIndex", {
           sceneName: scene, sceneItemId: textId, sceneItemIndex: bg.sceneItemIndex + 1,
         });
-        log("LT: text moved above BG");
+        log("LT: z-order fixed — text moved above BG");
+      } else {
+        log("LT: z-order ok — text index=" + tx?.sceneItemIndex, "BG index=" + bg?.sceneItemIndex);
       }
-    } catch {}
+    } catch (e) { log("LT: z-order check failed —", e.message); }
 
-    // 7. Enable both sources
+    // 6. Enable both sources
     await obs.call("SetSceneItemEnabled", { sceneName: scene, sceneItemId: bgId,   sceneItemEnabled: true });
     await obs.call("SetSceneItemEnabled", { sceneName: scene, sceneItemId: textId, sceneItemEnabled: true });
+    log("LT: both sources enabled — shown for 10s");
 
-    log("LT: shown — hiding in 10s");
     ltFadeTimer = setTimeout(() => hideLowerThird(), 10_000);
   } catch (e) {
     log("LT ERROR:", e.message);
@@ -605,6 +636,29 @@ function startServer() {
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
   });
 
+  // ── OBS: debug — shows exactly what's in OBS right now ──
+  app.get("/api/obs/debug", async (_, res) => {
+    if (!obs || !STATE.obsConnected) return res.json({ ok: false, error: "OBS not connected" });
+    const out = { ok: true };
+    try {
+      const vs = await obs.call("GetVideoSettings");
+      out.canvas = { w: vs.baseWidth, h: vs.baseHeight };
+    } catch (e) { out.canvas = { error: e.message }; }
+    try {
+      const { currentProgramSceneName } = await obs.call("GetCurrentProgramScene");
+      out.currentScene = currentProgramSceneName;
+      const { sceneItems } = await obs.call("GetSceneItemList", { sceneName: currentProgramSceneName });
+      out.sceneItems = sceneItems.map(i => ({
+        name: i.sourceName, kind: i.inputKind, index: i.sceneItemIndex, enabled: i.sceneItemEnabled,
+      }));
+    } catch (e) { out.sceneError = e.message; }
+    try {
+      const { inputKinds } = await obs.call("GetInputKindList", { unversioned: false });
+      out.relevantKinds = inputKinds.filter(k => /color|text|gdiplus|ft2/i.test(k));
+    } catch (e) { out.kindsError = e.message; }
+    res.json(out);
+  });
+
   // ── OBS: reconnect ──
   app.post("/api/obs/reconnect", async (req, res) => {
     try {
@@ -615,13 +669,66 @@ function startServer() {
   });
 
   // ── OBS: test lower third ──
+  // Returns step-by-step results so failures are visible in the UI.
   app.post("/api/obs/test-lower-third", async (_, res) => {
     if (!obs || !STATE.obsConnected) return res.json({ ok: false, error: "OBS not connected" });
+    const steps = [];
+    const step = (ok, msg) => { steps.push({ ok, msg }); log("LT TEST:", ok ? "OK" : "FAIL", msg); };
+
     try {
+      // Canvas
+      let W = 1920, H = 1080;
+      try {
+        const vs = await obs.call("GetVideoSettings");
+        W = vs.baseWidth || W; H = vs.baseHeight || H;
+        step(true, `Canvas: ${W}×${H}`);
+      } catch (e) { step(false, `GetVideoSettings failed: ${e.message}`); }
+
+      // Scene
+      let scene;
+      try {
+        ({ currentProgramSceneName: scene } = await obs.call("GetCurrentProgramScene"));
+        step(true, `Scene: "${scene}"`);
+      } catch (e) { step(false, `GetCurrentProgramScene failed: ${e.message}`); return res.json({ ok: false, steps }); }
+
+      // Kinds
+      let availableKinds = [];
+      try {
+        const { inputKinds } = await obs.call("GetInputKindList", { unversioned: false });
+        availableKinds = inputKinds.filter(k => /color|text|gdiplus|ft2/i.test(k));
+        step(true, `Available kinds: ${availableKinds.join(", ") || "(none matched filter)"}`);
+      } catch (e) { step(false, `GetInputKindList failed: ${e.message} — will try kinds blindly`); }
+
+      // Inject
       const t = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-      await showLowerThird("Sample Session Title", "Presenter Name", t);
-      res.json({ ok: true });
-    } catch (e) { res.json({ ok: false, error: e.message }); }
+      try {
+        await showLowerThird("Sample Session Title", "Presenter Name", t);
+        step(true, "Lower third injected — check OBS preview");
+      } catch (e) { step(false, "showLowerThird threw: " + e.message); }
+
+      // Verify sources now in scene
+      try {
+        const { sceneItems } = await obs.call("GetSceneItemList", { sceneName: scene });
+        const names = sceneItems.map(i => i.sourceName);
+        const hasBG = names.includes(LT_BG), hasTX = names.includes(LT_TEXT);
+        step(hasBG, `"${LT_BG}" in scene: ${hasBG}`);
+        step(hasTX, `"${LT_TEXT}" in scene: ${hasTX}`);
+        if (hasBG && hasTX) {
+          const bg = sceneItems.find(i => i.sourceName === LT_BG);
+          const tx = sceneItems.find(i => i.sourceName === LT_TEXT);
+          step(tx.sceneItemEnabled, `"${LT_TEXT}" enabled: ${tx.sceneItemEnabled}`);
+          step(bg.sceneItemEnabled, `"${LT_BG}" enabled: ${bg.sceneItemEnabled}`);
+          const zOk = tx.sceneItemIndex > bg.sceneItemIndex;
+          step(zOk, `Z-order: text index ${tx.sceneItemIndex} > BG index ${bg.sceneItemIndex}: ${zOk}`);
+        }
+      } catch (e) { step(false, "Scene item verification failed: " + e.message); }
+
+      const allOk = steps.every(s => s.ok);
+      res.json({ ok: allOk, steps });
+    } catch (e) {
+      step(false, "Unexpected error: " + e.message);
+      res.json({ ok: false, steps });
+    }
   });
 
   // ── Network info ──
