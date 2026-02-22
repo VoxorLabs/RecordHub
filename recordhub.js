@@ -425,10 +425,11 @@ async function obsSetupScenes() {
   try { await obs.call("RemoveSourceFilter", { sourceName: LT_BG,   filterName: "Fade" }); } catch {}
 
   // ── 5. Lower Third text — 40 px to fit presenter · title · time ──
+  // color + color1: white for both text_gdiplus (v1 uses "color") and text_gdiplus_v2 (uses "color1").
   const ltTextId = await upsertInput(LT_TEXT, textKind, {
     text: "",
     font: { face: "Arial", size: 40, style: "Bold", flags: 0 },
-    color: 4294967295, outline: true,
+    color: 4294967295, color1: 4294967295, outline: true,
     outline_color: 4278190080, outline_size: 3,
     extents: true, extents_cx: W - 60, extents_cy: LT_H - 16, extents_wrap: false,
   }, false);
@@ -438,6 +439,26 @@ async function obsSetupScenes() {
       boundsType: "OBS_BOUNDS_NONE" },
   });
   try { await obs.call("RemoveSourceFilter", { sourceName: LT_TEXT, filterName: "Fade" }); } catch {}
+
+  // ── 6. Ensure text renders ABOVE the BG ──
+  // If setup was run before and sources already existed, upsertInput doesn't change their
+  // z-order in the scene. The BG may end up on top, covering the text (blue box, no text).
+  // Explicitly move LT_TEXT above LT_BG after both are created/retrieved.
+  try {
+    const { sceneItems } = await obs.call("GetSceneItemList", { sceneName: SCENE });
+    const bgItem   = sceneItems.find(i => i.sourceName === LT_BG);
+    const textItem = sceneItems.find(i => i.sourceName === LT_TEXT);
+    if (bgItem && textItem && textItem.sceneItemIndex <= bgItem.sceneItemIndex) {
+      await obs.call("SetSceneItemIndex", {
+        sceneName: SCENE,
+        sceneItemId: ltTextId,
+        sceneItemIndex: bgItem.sceneItemIndex + 1,
+      });
+      log("OBS SETUP: reordered — text now above BG");
+    }
+  } catch (e) {
+    log("OBS SETUP: z-order check failed —", e.message);
+  }
 
   log("OBS SETUP: complete —", SCENE, "ready");
   if (warnings.length) warnings.forEach(w => log("OBS SETUP WARNING:", w));
