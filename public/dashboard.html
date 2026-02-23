@@ -338,6 +338,10 @@ async function reconnectObs(){
 
 refresh();
 setInterval(refresh, 3000);
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !$("btnStop").disabled) manualStop();
+});
 </script>
 </body>
 </html>
