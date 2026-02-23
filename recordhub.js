@@ -49,6 +49,7 @@ const STATE = {
   obsVersion: null,
   recording: false,
   currentSession: null,   // { id, title, presenter, room, date, start, startedAt }
+  pendingSession: null,   // session held across the stop→RecordStateChanged gap for file rename
   polledSession: null,    // latest from RoomAgent poll — info only, never starts recording
   lastPollAt: null,
   lastHeartbeatAt: null,
@@ -315,9 +316,10 @@ function sanitize(s) {
 }
 
 async function handleRecordingStopped(outputPath) {
-  if (!outputPath || !STATE.currentSession) return;
+  const s = STATE.currentSession || STATE.pendingSession;
+  STATE.pendingSession = null;
+  if (!outputPath || !s) return;
   const cfg = readConfig();
-  const s = STATE.currentSession;
   try {
     const date = (s.date  || "").replace(/-/g, "");
     const time = (s.start || "").replace(/[: ]/g, "").replace(/AM|PM/gi, "");
@@ -435,8 +437,9 @@ function scheduleAutoStop() {
   autoStopTimer = setTimeout(async () => {
     if (!STATE.recording) return;
     log("AUTO-STOP: 4-hour safety limit reached");
-    try { await obsStopRecord(); } catch (e) { log("AUTO-STOP ERROR", e.message); }
+    STATE.pendingSession = STATE.currentSession;
     STATE.currentSession = null;
+    try { await obsStopRecord(); } catch (e) { log("AUTO-STOP ERROR", e.message); }
   }, 4 * 60 * 60 * 1000);
 }
 
@@ -638,9 +641,10 @@ function startServer() {
     try {
       cancelAutoStop();
       hideLowerThird().catch(() => {});
-      const outputPath = await obsStopRecord();
       const session = STATE.currentSession;
+      STATE.pendingSession = session;
       STATE.currentSession = null;
+      const outputPath = await obsStopRecord();
       log("MANUAL STOP");
       res.json({ ok: true, outputPath, session });
     } catch (e) {
@@ -685,9 +689,10 @@ function startServer() {
       } else if (action === "stop") {
         cancelAutoStop();
         hideLowerThird().catch(() => {});
-        const outputPath = await obsStopRecord();
         const session = STATE.currentSession;
+        STATE.pendingSession = session;
         STATE.currentSession = null;
+        const outputPath = await obsStopRecord();
         log("TRIGGER STOP");
         res.json({ ok: true, outputPath, session });
 
