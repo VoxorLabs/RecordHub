@@ -497,6 +497,15 @@ async function pollRoomAgent() {
     STATE.polledSession = s
       ? { id: s.id, title: s.title, presenter: s.presenter, room: s.room, date: s.date, start: s.start }
       : null;
+
+    // Auto-stop: session ended (schedule moved on) but recording still running
+    if (!s && STATE.recording) {
+      log("POLL: session ended — stopping recording");
+      cancelAutoStop();
+      STATE.pendingSession = STATE.currentSession;
+      STATE.currentSession = null;
+      try { await obsStopRecord(); } catch (e) { log("POLL STOP ERROR", e.message); }
+    }
   } catch (e) {
     if (cfg.verbose) log("POLL ERROR", e.message);
   }
