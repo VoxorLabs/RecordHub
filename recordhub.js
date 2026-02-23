@@ -1,6 +1,6 @@
 "use strict";
 /**
- * RecordHub v2.0
+ * RecordHub v2.1
  *
  * Recording is triggered exclusively by POST /api/trigger from RoomAgent.
  * Lower thirds auto-inject into OBS's current scene on each recording start
