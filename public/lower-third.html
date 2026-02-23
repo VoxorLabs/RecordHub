@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 1920px;
+  height: 1080px;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Container: slides up from the bottom ── */
+.lt {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 136px;
+  display: flex;
+  align-items: stretch;
+  transform: translateY(100%);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lt.visible { transform: translateY(0); }
+
+/* ── Left red accent bar ── */
+.accent {
+  width: 10px;
+  background: #cc0000;
+  flex-shrink: 0;
+}
+
+/* ── Main dark content area ── */
+.content {
+  flex: 1;
+  min-width: 0;
+  background: rgba(6, 10, 22, 0.93);
+  border-top: 3px solid #cc0000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 36px;
+  gap: 9px;
+}
+
+.name {
+  font-size: 52px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session {
+  font-size: 27px;
+  font-weight: 400;
+  color: #94a3b8;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Right org badge ── */
+.badge {
+  flex-shrink: 0;
+  width: 230px;
+  background: #cc0000;
+  border-top: 3px solid #a80000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+}
+
+.org {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div class="lt" id="lt">
+  <div class="accent"></div>
+  <div class="content">
+    <div class="name"    id="name"></div>
+    <div class="session" id="session"></div>
+  </div>
+  <div class="badge" id="badge">
+    <div class="org" id="org"></div>
+  </div>
+</div>
+
+<script>
+const lt      = document.getElementById('lt');
+const elName  = document.getElementById('name');
+const elSess  = document.getElementById('session');
+const elOrg   = document.getElementById('org');
+const elBadge = document.getElementById('badge');
+
+let prevRecording = false;
+let hideTimer     = null;
+
+function show() {
+  clearTimeout(hideTimer);
+  lt.classList.add('visible');
+  hideTimer = setTimeout(hide, 10000);
+}
+
+function hide() {
+  clearTimeout(hideTimer);
+  hideTimer = null;
+  lt.classList.remove('visible');
+}
+
+async function poll() {
+  try {
+    const d = await fetch('/api/lower-third').then(r => r.json());
+    if (!d.ok) return;
+
+    elName.textContent = d.presenter || '';
+    elSess.textContent = d.title     || '';
+    elOrg.textContent  = d.org       || '';
+    elBadge.style.display = d.org ? '' : 'none';
+
+    const rec = !!d.recording;
+    if (rec && !prevRecording) show();
+    else if (!rec) hide();
+    prevRecording = rec;
+  } catch { /* keep polling */ }
+}
+
+poll();
+setInterval(poll, 3000);
+</script>
+</body>
+</html>

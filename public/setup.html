@@ -154,6 +154,11 @@ h1{font-size:26px;font-weight:800;margin-bottom:6px;display:flex;align-items:cen
     <label>Room Name <span style="font-weight:400;text-transform:none;font-size:10px">(optional — used for recordings folder)</span></label>
     <input type="text" id="room" placeholder="BallroomA">
   </div>
+  <div class="field" style="margin-top:6px">
+    <label>Event / Organisation Name <span style="font-weight:400;text-transform:none;font-size:10px">(shown in lower third badge)</span></label>
+    <input type="text" id="orgName" placeholder="TechConf 2026">
+    <div class="hint">Appears in the red badge on the right of the lower third. Leave blank to hide the badge.</div>
+  </div>
   <div class="actions">
     <button class="btn btn-test" onclick="testRoomAgent()">Test Connection</button>
     <span class="msg info" id="raMsg"></span>
@@ -176,6 +181,26 @@ h1{font-size:26px;font-weight:800;margin-bottom:6px;display:flex;align-items:cen
         <option value="false">No — keep MKV</option>
       </select>
     </div>
+  </div>
+</div>
+
+<!-- ═══ 4. Web-Ready Export ═══ -->
+<div class="card">
+  <h2>4 &mdash; Web-Ready Export</h2>
+  <p class="card-sub">
+    After each recording, RecordHub creates a <code>_web.mp4</code> alongside the original.
+    Your logo or event image plays for a few seconds, then crossfades into the recording —
+    ready to post directly to your website. Requires <code>ffmpeg</code> in PATH.
+  </p>
+  <div class="field">
+    <label>Intro Image Path</label>
+    <input type="text" id="introImagePath" placeholder="C:\Events\logo.png">
+    <div class="hint">PNG or JPG. Leave blank to disable web-ready export. Image is scaled and letterboxed to match your OBS canvas.</div>
+  </div>
+  <div class="field">
+    <label>Intro Duration (seconds)</label>
+    <input type="number" id="introDurationSecs" min="1" max="30" style="width:100px">
+    <div class="hint">How long to display the intro card before crossfading into the recording.</div>
   </div>
 </div>
 
@@ -282,6 +307,9 @@ async function loadConfig(){
     $("room").value = c.room || "";
     $("recordingsRoot").value = c.recordingsRoot || "";
     $("autoRemuxToMp4").value = String(c.autoRemuxToMp4 !== false);
+    $("orgName").value = c.orgName || "";
+    $("introImagePath").value = c.introImagePath || "";
+    $("introDurationSecs").value = c.introDurationSecs || 4;
   }catch{ showToast("Failed to load config", "err"); }
 }
 
@@ -293,6 +321,9 @@ async function save(){
     room: $("room").value.trim(),
     recordingsRoot: $("recordingsRoot").value.trim(),
     autoRemuxToMp4: $("autoRemuxToMp4").value === "true",
+    orgName: $("orgName").value.trim(),
+    introImagePath: $("introImagePath").value.trim(),
+    introDurationSecs: parseInt($("introDurationSecs").value) || 4,
   };
   const pw = $("obsPassword").value.trim();
   if(pw && pw !== "****") cfg.obsPassword = pw;

@@ -13,7 +13,7 @@ const fs   = require("fs");
 const fsp  = fs.promises;
 const path = require("path");
 const os   = require("os");
-const { exec } = require("child_process");
+const { exec, spawn } = require("child_process");
 const express  = require("express");
 const cors     = require("cors");
 
@@ -33,12 +33,14 @@ const DEFAULTS = {
   room: "",               // Used for recordings folder organisation
   recordingsRoot: RECORDINGS_DIR,
   autoRemuxToMp4: true,
+  introImagePath: "",      // path to PNG/JPG intro card shown before recording
+  introDurationSecs: 4,   // seconds to display the intro card
+  orgName: "",             // event/organisation name shown in lower third badge
   verbose: true,
 };
 
-// Fixed source names — not configurable to avoid misconfiguration
-const LT_BG   = "Lower Third BG";
-const LT_TEXT = "Lower Third";
+// Fixed source name — browser source replacing old color-BG + GDI-text pair
+const LT_SOURCE = "Lower Third";
 
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -250,89 +252,45 @@ async function upsertSource(scene, name, kinds, settings) {
   }
 }
 
-async function showLowerThird(title, presenter, startTime) {
+async function showLowerThird(title, presenter) {
   if (!obs || !STATE.obsConnected) { log("LT SKIP: OBS not connected"); return; }
-  if (ltFadeTimer) { clearTimeout(ltFadeTimer); ltFadeTimer = null; }
 
-  const text = [presenter, title, startTime].filter(Boolean).join("  ·  ");
-  log("LT: starting injection — text:", text);
-
+  log("LT: injecting browser source —", presenter, "/", title);
   try {
-    // 1. Read actual OBS canvas size
+    const cfg = readConfig();
+
+    // 1. Canvas size
     let W = 1920, H = 1080;
     try {
       const vs = await obs.call("GetVideoSettings");
-      W = vs.baseWidth  || W;
-      H = vs.baseHeight || H;
-    } catch (e) { log("LT: GetVideoSettings failed —", e.message, "— using", W + "×" + H); }
+      W = vs.baseWidth || W; H = vs.baseHeight || H;
+    } catch (e) { log("LT: GetVideoSettings failed —", e.message); }
     log("LT: canvas =", W + "×" + H);
 
-    // 2. Current program scene
+    // 2. Current scene
     const { currentProgramSceneName: scene } = await obs.call("GetCurrentProgramScene");
     STATE.ltScene = scene;
     log("LT: scene =", scene);
 
-    const LT_H = 90;
-    const LT_Y = H - LT_H - 10;
-    log("LT: strip Y =", LT_Y, "(H=" + H + " LT_H=" + LT_H + ")");
-
-    // 3. Lower Third BG — try all color source kinds in order
-    const bgId = await upsertSource(scene, LT_BG,
-      ["color_source_v3", "color_source_v2", "color_source"],
-      { color: 0xFF1A237E }
-    );
-    await obs.call("SetSceneItemTransform", {
-      sceneName: scene, sceneItemId: bgId,
-      sceneItemTransform: {
-        positionX: 0, positionY: LT_Y, alignment: 5,
-        boundsType: "OBS_BOUNDS_STRETCH", boundsWidth: W, boundsHeight: LT_H,
-      },
+    // 3. Upsert browser source — full canvas size, URL points to /lower-third page
+    const ltId = await upsertSource(scene, LT_SOURCE, ["browser_source"], {
+      url:      `http://localhost:${cfg.port}/lower-third`,
+      width:    W,
+      height:   H,
+      fps:      30,
+      css:      "",
+      shutdown: false,
     });
-    log("LT: BG positioned id=" + bgId);
-    try { await obs.call("RemoveSourceFilter", { sourceName: LT_BG, filterName: "Fade" }); } catch {}
 
-    // 4. Lower Third text — try all text source kinds in order
-    //    color + color1: both set so it works for text_gdiplus (v1 uses "color")
-    //    and text_gdiplus_v2 (uses "color1"). White = 0xFFFFFFFF for both.
-    const textId = await upsertSource(scene, LT_TEXT,
-      ["text_gdiplus_v2", "text_gdiplus", "text_ft2_source_v2", "text_ft2_source"],
-      {
-        text,
-        font: { face: "Arial", size: 40, style: "Bold", flags: 0 },
-        color:  4294967295,  // white — text_gdiplus v1
-        color1: 4294967295,  // white — text_gdiplus_v2
-        outline: true, outline_color: 4278190080, outline_size: 3,
-        extents: true, extents_cx: W - 60, extents_cy: LT_H - 16, extents_wrap: false,
-      }
-    );
+    // 4. Position at 0,0 covering full canvas (source is already 1920×1080)
     await obs.call("SetSceneItemTransform", {
-      sceneName: scene, sceneItemId: textId,
-      sceneItemTransform: { positionX: 30, positionY: LT_Y + 12, alignment: 5, boundsType: "OBS_BOUNDS_NONE" },
+      sceneName: scene, sceneItemId: ltId,
+      sceneItemTransform: { positionX: 0, positionY: 0, alignment: 5, boundsType: "OBS_BOUNDS_NONE" },
     });
-    log("LT: text positioned id=" + textId);
-    try { await obs.call("RemoveSourceFilter", { sourceName: LT_TEXT, filterName: "Fade" }); } catch {}
 
-    // 5. Ensure text is ABOVE BG in z-order (higher sceneItemIndex = rendered on top in OBS)
-    try {
-      const { sceneItems } = await obs.call("GetSceneItemList", { sceneName: scene });
-      const bg = sceneItems.find(i => i.sourceName === LT_BG);
-      const tx = sceneItems.find(i => i.sourceName === LT_TEXT);
-      if (bg && tx && tx.sceneItemIndex <= bg.sceneItemIndex) {
-        await obs.call("SetSceneItemIndex", {
-          sceneName: scene, sceneItemId: textId, sceneItemIndex: bg.sceneItemIndex + 1,
-        });
-        log("LT: z-order fixed — text moved above BG");
-      } else {
-        log("LT: z-order ok — text index=" + tx?.sceneItemIndex, "BG index=" + bg?.sceneItemIndex);
-      }
-    } catch (e) { log("LT: z-order check failed —", e.message); }
-
-    // 6. Enable both sources
-    await obs.call("SetSceneItemEnabled", { sceneName: scene, sceneItemId: bgId,   sceneItemEnabled: true });
-    await obs.call("SetSceneItemEnabled", { sceneName: scene, sceneItemId: textId, sceneItemEnabled: true });
-    log("LT: both sources enabled — shown for 10s");
-
-    ltFadeTimer = setTimeout(() => hideLowerThird(), 10_000);
+    // 5. Enable — the HTML page self-manages the 10s display and slide animation via polling
+    await obs.call("SetSceneItemEnabled", { sceneName: scene, sceneItemId: ltId, sceneItemEnabled: true });
+    log("LT: browser source enabled — HTML manages display timing");
   } catch (e) {
     log("LT ERROR:", e.message);
     addError("Lower third error: " + e.message);
@@ -340,22 +298,10 @@ async function showLowerThird(title, presenter, startTime) {
 }
 
 async function hideLowerThird() {
-  if (!obs || !STATE.obsConnected) return;
+  // The browser source page detects recording state via /api/lower-third polling and
+  // hides itself. This function is a no-op kept for call-site compatibility.
   if (ltFadeTimer) { clearTimeout(ltFadeTimer); ltFadeTimer = null; }
-
-  let scene = STATE.ltScene;
-  if (!scene) {
-    try { ({ currentProgramSceneName: scene } = await obs.call("GetCurrentProgramScene")); } catch { return; }
-  }
-
-  for (const src of [LT_BG, LT_TEXT]) {
-    try {
-      const { sceneItemId } = await obs.call("GetSceneItemId", { sceneName: scene, sourceName: src });
-      await obs.call("SetSceneItemEnabled", { sceneName: scene, sceneItemId, sceneItemEnabled: false });
-    } catch {}
-  }
-  STATE.ltScene = null;
-  log("LT: hidden");
+  log("LT: hide (browser source self-manages via polling)");
 }
 
 // ─── Recording file management ────────────────────────────────────────────────
@@ -385,18 +331,98 @@ async function handleRecordingStopped(outputPath) {
     STATE.totalRecordings++;
     STATE.lastOutputPath = dest;
     log("RECORDING SAVED", dest);
-    if (cfg.autoRemuxToMp4 && ext.toLowerCase() === ".mkv") remuxToMp4(dest);
+    if (cfg.autoRemuxToMp4 && ext.toLowerCase() === ".mkv") {
+      remuxToMp4(dest, finalPath => { if (cfg.introImagePath) makeWebReady(finalPath, s, cfg); });
+    } else {
+      if (cfg.introImagePath) makeWebReady(dest, s, cfg);
+    }
   } catch (e) {
     log("RECORDING SAVE ERROR", e.message);
     addError("Recording save error: " + e.message);
   }
 }
 
-function remuxToMp4(mkvPath) {
+function remuxToMp4(mkvPath, onDone) {
   const mp4 = mkvPath.replace(/\.mkv$/i, ".mp4");
   exec(`ffmpeg -i "${mkvPath}" -codec copy "${mp4}" -y`, { windowsHide: true }, (err) => {
-    if (!err) log("REMUXED", path.basename(mp4));
-    else log("REMUX SKIP (ffmpeg not found)");
+    if (!err) {
+      log("REMUXED", path.basename(mp4));
+      if (onDone) onDone(mp4);
+    } else {
+      log("REMUX SKIP (ffmpeg not found)");
+      if (onDone) onDone(mkvPath); // fall back to original
+    }
+  });
+}
+
+// ─── Video dimensions (for intro card scaling) ────────────────────────────────
+function getVideoDimensions(filePath) {
+  return new Promise(resolve => {
+    exec(
+      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${filePath}"`,
+      { windowsHide: true, timeout: 10000 },
+      (_err, stdout) => {
+        const parts = (stdout || "").trim().split("x");
+        resolve({ w: parseInt(parts[0]) || 1920, h: parseInt(parts[1]) || 1080 });
+      }
+    );
+  });
+}
+
+// ─── Web-ready export ─────────────────────────────────────────────────────────
+// Prepends an intro card image (with crossfade) to the recording and saves a
+// _web.mp4 file alongside the original. Uses spawn to avoid shell quoting
+// issues with the filter_complex string.
+async function makeWebReady(sourcePath, session, cfg) {
+  const introPath = cfg.introImagePath;
+  if (!introPath) return;
+  if (!fs.existsSync(introPath)) {
+    log("WEB READY SKIP: intro image not found —", introPath);
+    addError("Web ready: intro image not found: " + introPath);
+    return;
+  }
+
+  const dur       = Math.max(1, Number(cfg.introDurationSecs) || 4);
+  const fadeStart = Math.max(0, dur - 1);
+  const audioDelay = dur * 1000; // ms
+
+  const ext     = path.extname(sourcePath);
+  const webPath = sourcePath.slice(0, -ext.length) + "_web.mp4";
+
+  const { w, h } = await getVideoDimensions(sourcePath);
+
+  // Filter: scale+pad intro to match recording canvas, fade out → concat → fade in
+  const filterStr = [
+    `[0:v]scale=${w}:${h}:force_original_aspect_ratio=decrease,` +
+      `pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,` +
+      `fade=t=out:st=${fadeStart}:d=1[intro_v]`,
+    `[1:v]fade=t=in:st=0:d=1[rec_v]`,
+    `[intro_v][rec_v]concat=n=2:v=1:a=0[v]`,
+    `[1:a]adelay=${audioDelay}|${audioDelay}[a]`,
+  ].join(";");
+
+  const args = [
+    "-loop", "1", "-framerate", "30", "-t", String(dur),
+    "-i", introPath,
+    "-i", sourcePath,
+    "-filter_complex", filterStr,
+    "-map", "[v]", "-map", "[a]",
+    "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+    "-c:a", "aac", "-b:a", "192k",
+    "-movflags", "+faststart",
+    "-y", webPath,
+  ];
+
+  log("WEB READY: encoding", path.basename(sourcePath), "→", path.basename(webPath));
+  const proc = spawn("ffmpeg", args, { windowsHide: true });
+  proc.stderr.on("data", () => {}); // consume stderr so process doesn't block
+  proc.on("close", code => {
+    if (code === 0) log("WEB READY: done →", path.basename(webPath));
+    else { log("WEB READY FAILED exit=" + code); addError("Web ready failed: " + path.basename(sourcePath)); }
+  });
+  proc.on("error", e => {
+    log("WEB READY ERROR:", e.message);
+    addError("Web ready: " + e.message);
   });
 }
 
@@ -567,6 +593,20 @@ function startServer() {
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
   });
 
+  // ── Lower third browser source page + data API ──
+  app.get("/lower-third", (_, res) => res.sendFile(path.join(PUBLIC_DIR, "lower-third.html")));
+  app.get("/api/lower-third", (_, res) => {
+    const cfg = readConfig();
+    const s   = STATE.currentSession;
+    res.json({
+      ok:        true,
+      recording: STATE.recording,
+      presenter: s?.presenter || "",
+      title:     s?.title     || "",
+      org:       cfg.orgName  || "",
+    });
+  });
+
   // ── Manual recording (dashboard buttons / testing) ──
   app.post("/api/record/start", async (req, res) => {
     try {
@@ -582,7 +622,7 @@ function startServer() {
         startedAt: Date.now(),
       };
       if (STATE.obsConnected) {
-        await showLowerThird(STATE.currentSession.title, STATE.currentSession.presenter, STATE.currentSession.start).catch(() => {});
+        await showLowerThird(STATE.currentSession.title, STATE.currentSession.presenter).catch(() => {});
       }
       await obsStartRecord();
       scheduleAutoStop();
@@ -635,7 +675,7 @@ function startServer() {
           startedAt: Date.now(),
         };
         if (STATE.obsConnected) {
-          await showLowerThird(STATE.currentSession.title, STATE.currentSession.presenter, STATE.currentSession.start).catch(() => {});
+          await showLowerThird(STATE.currentSession.title, STATE.currentSession.presenter).catch(() => {});
         }
         await obsStartRecord();
         scheduleAutoStop();
@@ -724,36 +764,25 @@ function startServer() {
         step(true, `Scene: "${scene}"`);
       } catch (e) { step(false, `GetCurrentProgramScene failed: ${e.message}`); return res.json({ ok: false, steps }); }
 
-      // Kinds
-      let availableKinds = [];
+      // Kinds — confirm browser_source is available
       try {
         const { inputKinds } = await obs.call("GetInputKindList", { unversioned: false });
-        availableKinds = inputKinds.filter(k => /color|text|gdiplus|ft2/i.test(k));
-        step(true, `Available kinds: ${availableKinds.join(", ") || "(none matched filter)"}`);
-      } catch (e) { step(false, `GetInputKindList failed: ${e.message} — will try kinds blindly`); }
+        const hasBrowser = inputKinds.includes("browser_source");
+        step(hasBrowser, `browser_source available: ${hasBrowser}`);
+      } catch (e) { step(false, `GetInputKindList failed: ${e.message}`); }
 
       // Inject
-      const t = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
       try {
-        await showLowerThird("Sample Session Title", "Presenter Name", t);
-        step(true, "Lower third injected — check OBS preview");
+        await showLowerThird("Sample Session Title", "Presenter Name");
+        step(true, "Lower third browser source injected — check OBS preview");
       } catch (e) { step(false, "showLowerThird threw: " + e.message); }
 
-      // Verify sources now in scene
+      // Verify source now in scene
       try {
         const { sceneItems } = await obs.call("GetSceneItemList", { sceneName: scene });
-        const names = sceneItems.map(i => i.sourceName);
-        const hasBG = names.includes(LT_BG), hasTX = names.includes(LT_TEXT);
-        step(hasBG, `"${LT_BG}" in scene: ${hasBG}`);
-        step(hasTX, `"${LT_TEXT}" in scene: ${hasTX}`);
-        if (hasBG && hasTX) {
-          const bg = sceneItems.find(i => i.sourceName === LT_BG);
-          const tx = sceneItems.find(i => i.sourceName === LT_TEXT);
-          step(tx.sceneItemEnabled, `"${LT_TEXT}" enabled: ${tx.sceneItemEnabled}`);
-          step(bg.sceneItemEnabled, `"${LT_BG}" enabled: ${bg.sceneItemEnabled}`);
-          const zOk = tx.sceneItemIndex > bg.sceneItemIndex;
-          step(zOk, `Z-order: text index ${tx.sceneItemIndex} > BG index ${bg.sceneItemIndex}: ${zOk}`);
-        }
+        const item = sceneItems.find(i => i.sourceName === LT_SOURCE);
+        step(!!item, `"${LT_SOURCE}" in scene: ${!!item}`);
+        if (item) step(item.sceneItemEnabled, `"${LT_SOURCE}" enabled: ${item.sceneItemEnabled}`);
       } catch (e) { step(false, "Scene item verification failed: " + e.message); }
 
       const allOk = steps.every(s => s.ok);
@@ -813,7 +842,7 @@ function startServer() {
         const { currentProgramSceneName: scene } = await obs.call("GetCurrentProgramScene");
         const { sceneItems } = await obs.call("GetSceneItemList", { sceneName: scene });
         const names = new Set(sceneItems.map(i => i.sourceName));
-        ltOk = names.has(LT_BG) && names.has(LT_TEXT);
+        ltOk = names.has(LT_SOURCE);
         ltDetail = ltOk
           ? `Ready in "${scene}" — click Test Lower Third to verify`
           : `Not in "${scene}" yet — auto-created when recording starts`;

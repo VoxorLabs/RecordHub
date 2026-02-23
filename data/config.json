@@ -1,15 +1,13 @@
 {
   "port": 3299,
-  "presenterHubBase": "http://10.0.0.166:8088",
-  "roomAgentBase": "http://localhost:3199",
-  "room": "BallroomA",
   "obsWebSocketUrl": "ws://localhost:4455",
   "obsPassword": "",
-  "pollMs": 5000,
-  "heartbeatMs": 10000,
+  "roomAgentBase": "http://10.0.0.X:3199",
+  "presenterHubBase": "http://10.0.0.166:8088",
+  "room": "",
   "recordingsRoot": "C:\\RecordHub\\recordings",
   "autoRemuxToMp4": true,
-  "pipSceneName": "Session Recording",
-  "titleSourceName": "Lower Third",
+  "introImagePath": "",
+  "introDurationSecs": 4,
   "verbose": true
 }
