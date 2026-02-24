@@ -1,0 +1,15 @@
+{
+  "name": "presenterhub-recordhub",
+  "version": "2.2.0",
+  "description": "Automated session recording sidecar — OBS WebSocket integration with auto lower thirds",
+  "main": "recordhub.js",
+  "scripts": {
+    "start": "node recordhub.js",
+    "start:prod": "NODE_ENV=production node recordhub.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.22.1",
+    "obs-websocket-js": "^5.0.6"
+  }
+}

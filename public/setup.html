@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RecordHub — Setup</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#020617;--surface:#0f172a;--surface2:#1e293b;
+  --border:rgba(148,163,184,0.12);--text:#e2e8f0;--muted:#94a3b8;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --red:#ef4444;--green:#22c55e;--blue:#3b82f6;--amber:#f59e0b;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:36px 20px}
+.container{max-width:680px;margin:0 auto}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+
+.back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-bottom:24px}
+h1{font-size:26px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+.logo-rec{color:var(--red)}
+.logo-hub{background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{font-size:14px;color:var(--muted);margin-bottom:28px}
+
+/* Network banner */
+.net-banner{display:flex;align-items:center;gap:12px;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:12px 16px;margin-bottom:24px;flex-wrap:wrap}
+.net-label{font-size:12px;color:var(--muted)}
+.net-url{font-family:var(--mono);font-size:15px;font-weight:700;color:#60a5fa;background:rgba(59,130,246,0.1);padding:4px 12px;border-radius:6px;border:1px solid rgba(59,130,246,0.2);cursor:pointer;transition:background .15s}
+.net-url:hover,.net-url.copied{background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.3);color:#4ade80}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:18px}
+.card h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px}
+.card-sub{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5}
+.card-sub code{font-family:var(--mono);font-size:12px;background:var(--surface2);padding:1px 5px;border-radius:4px}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.field input,.field select{width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:var(--mono);outline:none;transition:border-color .15s}
+.field input:focus{border-color:rgba(129,140,248,0.4)}
+.field .hint{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4}
+
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* Buttons */
+.btn{padding:10px 20px;border-radius:9px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(79,70,229,.4)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-outline:hover{border-color:var(--text);color:var(--text)}
+.btn-test{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:var(--blue)}
+.btn-test:hover{background:rgba(59,130,246,0.18)}
+.btn-green{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:var(--green)}
+.btn-green:hover{background:rgba(34,197,94,0.18)}
+.btn-amber{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:var(--amber)}
+.btn-amber:hover{background:rgba(245,158,11,0.18)}
+.actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;align-items:center}
+
+/* Status feedback */
+.msg{font-size:13px;font-family:var(--mono);padding:3px 0}
+.msg.ok{color:var(--green)}
+.msg.err{color:var(--red)}
+.msg.info{color:var(--muted)}
+
+/* Health */
+.hrow{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.hrow:last-child{border-bottom:none}
+.hdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.hdot.ok{background:var(--green);box-shadow:0 0 7px rgba(34,197,94,.4)}
+.hdot.err{background:var(--red);box-shadow:0 0 7px rgba(239,68,68,.4)}
+.hdot.warn{background:var(--amber)}
+.hlabel{font-size:13px;font-weight:600;min-width:120px}
+.hdetail{font-size:12px;color:var(--muted);font-family:var(--mono);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;vertical-align:middle;margin-left:6px}
+
+/* Trigger API reference */
+.code-block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;font-family:var(--mono);color:var(--text);line-height:1.8;margin-top:8px}
+.code-block .k{color:#818cf8}
+.code-block .v{color:#4ade80}
+.code-block .m{color:var(--amber)}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:100;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.toast.ok{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80}
+.toast.err{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171}
+</style>
+</head>
+<body>
+<div class="container">
+
+<a href="/" class="back">&#8592; Dashboard</a>
+<h1><span class="logo-rec">&#9679;</span> Record<span class="logo-hub">Hub</span> &mdash; Setup</h1>
+<p class="subtitle">Connect OBS, link your room PC, and save. That&rsquo;s all.</p>
+
+<!-- Network banner -->
+<div class="net-banner" id="netBanner" style="display:none">
+  <span class="net-label">Trigger URL for RoomAgent:</span>
+  <span class="net-url" id="netUrl" onclick="copyUrl()" title="Click to copy">detecting…</span>
+  <span style="font-size:11px;color:var(--muted);margin-left:auto">← paste this in RoomAgent setup</span>
+</div>
+
+<!-- ═══ System Status ═══ -->
+<div class="card">
+  <h2>System Status <span class="live"></span></h2>
+  <div id="healthRows">
+    <div class="hrow"><div class="hdot warn"></div><div class="hlabel">Loading…</div></div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-amber" id="btnTestLT" onclick="testLowerThird()" disabled>Test Lower Third</button>
+    <button class="btn btn-outline" id="btnDebug" onclick="runDebug()" style="display:none">Diagnose OBS</button>
+  </div>
+  <div id="ltSteps" style="margin-top:12px;display:none"></div>
+</div>
+
+<!-- ═══ 1. OBS Studio ═══ -->
+<div class="card">
+  <h2>1 &mdash; OBS Studio</h2>
+  <p class="card-sub">
+    In OBS: <code>Tools &rarr; WebSocket Server Settings &rarr; Enable WebSocket server</code>.<br>
+    Note the port (default 4455) and set a password. Enter them below.
+  </p>
+  <div class="field">
+    <label>WebSocket URL</label>
+    <input type="text" id="obsWebSocketUrl" placeholder="ws://localhost:4455">
+    <div class="hint">Use <code>ws://localhost:4455</code> when OBS is on this same machine.</div>
+  </div>
+  <div class="field">
+    <label>Password</label>
+    <input type="password" id="obsPassword" placeholder="Leave blank if no password set">
+  </div>
+  <div class="actions">
+    <button class="btn btn-test" onclick="testObs()">Test &amp; Connect</button>
+    <span class="msg info" id="obsMsg"></span>
+  </div>
+</div>
+
+<!-- ═══ 2. RoomAgent ═══ -->
+<div class="card">
+  <h2>2 &mdash; RoomAgent</h2>
+  <p class="card-sub">
+    The laptop running the room kiosk. RecordHub polls it for session info (presenter name, title)
+    to display on the lower third overlay. Recording is triggered by the kiosk &mdash; not by this poll.
+  </p>
+  <div class="field">
+    <label>RoomAgent URL</label>
+    <input type="text" id="roomAgentBase" placeholder="http://10.0.0.X:3199">
+    <div class="hint">IP address of the room laptop running RoomAgent.</div>
+  </div>
+  <div class="field">
+    <label>Room Name <span style="font-weight:400;text-transform:none;font-size:10px">(optional — used for recordings folder)</span></label>
+    <input type="text" id="room" placeholder="BallroomA">
+  </div>
+  <div class="field" style="margin-top:6px">
+    <label>Event / Organisation Name <span style="font-weight:400;text-transform:none;font-size:10px">(shown in lower third badge)</span></label>
+    <input type="text" id="orgName" placeholder="TechConf 2026">
+    <div class="hint">Appears in the red badge on the right of the lower third. Leave blank to hide the badge.</div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-test" onclick="testRoomAgent()">Test Connection</button>
+    <span class="msg info" id="raMsg"></span>
+  </div>
+</div>
+
+<!-- ═══ 3. Recordings ═══ -->
+<div class="card">
+  <h2>3 &mdash; Recordings</h2>
+  <div class="row">
+    <div class="field">
+      <label>Save Folder</label>
+      <input type="text" id="recordingsRoot" placeholder="C:\RecordHub\recordings">
+      <div class="hint">Where recorded files are moved after each session.</div>
+    </div>
+    <div class="field">
+      <label>Auto-remux MKV → MP4</label>
+      <select id="autoRemuxToMp4">
+        <option value="true">Yes (requires ffmpeg in PATH)</option>
+        <option value="false">No — keep MKV</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 4. Web-Ready Export ═══ -->
+<div class="card">
+  <h2>4 &mdash; Web-Ready Export</h2>
+  <p class="card-sub">
+    After each recording, RecordHub creates a <code>_web.mp4</code> alongside the original.
+    Your logo or event image plays for a few seconds, then crossfades into the recording —
+    ready to post directly to your website. Requires <code>ffmpeg</code> in PATH.
+  </p>
+  <div class="field">
+    <label>Intro Image Path</label>
+    <input type="text" id="introImagePath" placeholder="C:\Events\logo.png">
+    <div class="hint">PNG or JPG. Leave blank to disable web-ready export. Image is scaled and letterboxed to match your OBS canvas.</div>
+  </div>
+  <div class="field">
+    <label>Intro Duration (seconds)</label>
+    <input type="number" id="introDurationSecs" min="1" max="30" style="width:100px">
+    <div class="hint">How long to display the intro card before crossfading into the recording.</div>
+  </div>
+</div>
+
+<!-- ═══ Save ═══ -->
+<div class="actions" style="margin-bottom:32px">
+  <button class="btn btn-primary" onclick="save()">Save Configuration</button>
+  <a href="/" class="btn btn-outline">Cancel</a>
+</div>
+
+<!-- ═══ Trigger API Reference ═══ -->
+<div class="card">
+  <h2>Trigger API</h2>
+  <p class="card-sub">
+    RoomAgent uses these endpoints to start and stop recording. Any device on the LAN can call them.
+  </p>
+  <div class="field">
+    <label>Start Recording</label>
+    <div class="code-block">
+<span class="m">POST</span> http://<span class="k" id="apiHost">&#60;this-machine-ip&#62;</span>:3299/api/trigger
+{
+  <span class="k">"action"</span>: <span class="v">"start"</span>,
+  <span class="k">"title"</span>: <span class="v">"Talk Title"</span>,
+  <span class="k">"presenter"</span>: <span class="v">"Jane Smith"</span>,
+  <span class="k">"sessionId"</span>: <span class="v">"123"</span>
+}</div>
+  </div>
+  <div class="field" style="margin-bottom:0">
+    <label>Stop Recording</label>
+    <div class="code-block">
+<span class="m">POST</span> http://<span class="k" id="apiHost2">&#60;this-machine-ip&#62;</span>:3299/api/trigger
+{ <span class="k">"action"</span>: <span class="v">"stop"</span> }</div>
+  </div>
+</div>
+
+</div><!-- /container -->
+<div class="toast" id="toast"></div>
+
+<script>
+function $(id){ return document.getElementById(id); }
+function showToast(msg, type){
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "toast show " + (type || "ok");
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.className = "toast", 3000);
+}
+function setMsg(id, msg, type){
+  const el = $(id); if (!el) return;
+  el.textContent = msg;
+  el.className = "msg " + (type || "info");
+}
+
+// ─── Network info ───
+let _netUrl = "";
+async function loadNetInfo(){
+  try{
+    const d = await fetch("/api/network-info").then(r => r.json());
+    if(!d.ok) return;
+    _netUrl = d.url;
+    $("netUrl").textContent = d.url;
+    $("netBanner").style.display = "flex";
+    $("apiHost").textContent = d.recommended + ":3299";
+    $("apiHost2").textContent = d.recommended + ":3299";
+  }catch{}
+}
+async function copyUrl(){
+  const url = _netUrl || $("netUrl").textContent;
+  try{
+    await navigator.clipboard.writeText(url);
+    const el = $("netUrl");
+    el.classList.add("copied"); el.textContent = "Copied!";
+    setTimeout(()=>{ el.classList.remove("copied"); el.textContent = url; }, 1500);
+    showToast("Copied: " + url, "ok");
+  }catch{ showToast("Select and copy manually", "err"); }
+}
+
+// ─── Health ───
+async function refreshHealth(){
+  try{
+    const d = await fetch("/api/health").then(r => r.json());
+    if(!d.ok) return;
+    const rows = $("healthRows");
+    rows.innerHTML = d.checks.map(c => `
+      <div class="hrow">
+        <div class="hdot ${c.ok ? "ok" : "err"}"></div>
+        <div class="hlabel">${c.label}</div>
+        <div class="hdetail" title="${c.detail}">${c.detail}</div>
+      </div>`).join("");
+    const obsOk = d.checks.find(c => c.key === "obs")?.ok;
+    $("btnTestLT").disabled = !obsOk;
+    $("btnDebug").style.display = obsOk ? "inline-flex" : "none";
+  }catch{}
+}
+
+// ─── Load config ───
+async function loadConfig(){
+  try{
+    const d = await fetch("/api/config").then(r => r.json());
+    if(!d.ok) return;
+    const c = d.config;
+    $("obsWebSocketUrl").value = c.obsWebSocketUrl || "ws://localhost:4455";
+    $("obsPassword").value = "";   // never pre-fill password
+    $("roomAgentBase").value = c.roomAgentBase || "";
+    $("room").value = c.room || "";
+    $("recordingsRoot").value = c.recordingsRoot || "";
+    $("autoRemuxToMp4").value = String(c.autoRemuxToMp4 !== false);
+    $("orgName").value = c.orgName || "";
+    $("introImagePath").value = c.introImagePath || "";
+    $("introDurationSecs").value = c.introDurationSecs || 4;
+  }catch{ showToast("Failed to load config", "err"); }
+}
+
+// ─── Save config ───
+async function save(){
+  const cfg = {
+    obsWebSocketUrl: $("obsWebSocketUrl").value.trim(),
+    roomAgentBase: $("roomAgentBase").value.trim(),
+    room: $("room").value.trim(),
+    recordingsRoot: $("recordingsRoot").value.trim(),
+    autoRemuxToMp4: $("autoRemuxToMp4").value === "true",
+    orgName: $("orgName").value.trim(),
+    introImagePath: $("introImagePath").value.trim(),
+    introDurationSecs: parseInt($("introDurationSecs").value) || 4,
+  };
+  const pw = $("obsPassword").value.trim();
+  if(pw && pw !== "****") cfg.obsPassword = pw;
+  try{
+    const d = await fetch("/api/config", {
+      method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(cfg),
+    }).then(r => r.json());
+    if(d.ok) showToast("Configuration saved!", "ok");
+    else showToast(d.error || "Save failed", "err");
+  }catch{ showToast("Network error", "err"); }
+}
+
+// ─── Test OBS ───
+async function testObs(){
+  const url  = $("obsWebSocketUrl").value.trim() || "ws://localhost:4455";
+  const pw   = $("obsPassword").value.trim();
+  setMsg("obsMsg", "Connecting…", "info");
+  // Save first
+  const cfg = { obsWebSocketUrl: url };
+  if(pw && pw !== "****") cfg.obsPassword = pw;
+  await fetch("/api/config", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(cfg) });
+  try{
+    const d = await fetch("/api/obs/reconnect", { method:"POST" }).then(r => r.json());
+    if(d.connected){
+      setMsg("obsMsg", "Connected — OBS " + (d.version || ""), "ok");
+      refreshHealth();
+    }else{
+      setMsg("obsMsg", "Failed: " + (d.error || "check URL and password"), "err");
+    }
+  }catch(e){ setMsg("obsMsg", "Error: " + e.message, "err"); }
+}
+
+// ─── Test RoomAgent ───
+async function testRoomAgent(){
+  const url = $("roomAgentBase").value.trim();
+  if(!url){ setMsg("raMsg","Enter a URL first","err"); return; }
+  setMsg("raMsg","Testing…","info");
+  try{
+    const r = await fetch(url + "/api/kiosk-data", { signal: AbortSignal.timeout(5000) });
+    const d = await r.json();
+    if(d.ok){
+      setMsg("raMsg", `Connected — ${d.sessions?.length ?? 0} sessions`, "ok");
+    }else{
+      setMsg("raMsg", "Responded but ok=false", "err");
+    }
+  }catch(e){ setMsg("raMsg", "Unreachable: " + e.message.split(":")[0], "err"); }
+}
+
+// ─── Test lower third ───
+async function testLowerThird(){
+  const stepsEl = $("ltSteps");
+  stepsEl.style.display = "block";
+  stepsEl.innerHTML = '<div style="font-size:12px;color:var(--muted);font-family:var(--mono)">Running…</div>';
+  $("btnTestLT").disabled = true;
+  try{
+    const d = await fetch("/api/obs/test-lower-third", { method:"POST" }).then(r => r.json());
+    if(d.steps){
+      stepsEl.innerHTML = d.steps.map(s =>
+        `<div style="font-size:12px;font-family:var(--mono);padding:3px 0;color:${s.ok?"var(--green)":"var(--red)"}">
+          ${s.ok ? "✓" : "✗"} ${s.msg}
+        </div>`
+      ).join("");
+    }
+    if(d.ok) showToast("Lower third shown — check OBS preview", "ok");
+    else showToast("Lower third failed — see steps above", "err");
+  }catch(e){
+    stepsEl.innerHTML = `<div style="font-size:12px;font-family:var(--mono);color:var(--red)">✗ ${e.message}</div>`;
+    showToast("Error: " + e.message, "err");
+  } finally {
+    $("btnTestLT").disabled = false;
+  }
+}
+
+// ─── Diagnose OBS ───
+async function runDebug(){
+  try{
+    const d = await fetch("/api/obs/debug").then(r => r.json());
+    const stepsEl = $("ltSteps");
+    stepsEl.style.display = "block";
+    stepsEl.innerHTML = `<pre style="font-size:11px;font-family:var(--mono);color:var(--muted);white-space:pre-wrap;word-break:break-all">${JSON.stringify(d,null,2)}</pre>`;
+  }catch(e){ showToast("Debug failed: " + e.message, "err"); }
+}
+
+// ─── Init ───
+(async()=>{
+  await loadNetInfo();
+  await loadConfig();
+  await refreshHealth();
+  setInterval(refreshHealth, 10000);
+})();
+</script>
+</body>
+</html>

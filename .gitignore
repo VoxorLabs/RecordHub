@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Runtime config (contains OBS password, server URLs)
+data/config.json
+data/
+
+# OBS recordings and rendered files
+recordings/
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.webm
+
+# Environment
+.env
+.env.local
+
+# Logs
+logs/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
