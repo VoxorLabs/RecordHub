@@ -1,6 +1,6 @@
 # RecordHub
 
-Automated session recording sidecar for PresenterHub events.
+Automated session recording sidecar for Voxor Presenter events.
 Controls OBS Studio via WebSocket — starts and stops recording automatically when sessions begin and end, produces PiP video (presenter camera over slides), and burns a presenter lower-third that fades after 10 seconds.
 
 ---
@@ -56,8 +56,8 @@ Scene: "Session Recording"
 └── Slides           — monitor capture, fills the canvas
 ```
 
-### Step 3 — PresenterHub & Room
-- Set the PresenterHub server URL and your room name (used for file organisation and heartbeats).
+### Step 3 — Voxor Presenter & Room
+- Set the Voxor Presenter server URL and your room name (used for file organisation and heartbeats).
 
 ### Step 4 — Save
 - Click **Save Configuration**.

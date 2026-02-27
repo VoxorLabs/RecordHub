@@ -3,7 +3,7 @@
   "obsWebSocketUrl": "ws://localhost:4455",
   "obsPassword": "",
   "roomAgentBase": "http://10.0.0.X:3199",
-  "presenterHubBase": "http://10.0.0.166:8088",
+  "voxorPresenterBase": "http://10.0.0.166:8088",
   "room": "",
   "recordingsRoot": "C:\\RecordHub\\recordings",
   "autoRemuxToMp4": true,

@@ -29,7 +29,7 @@ const DEFAULTS = {
   obsWebSocketUrl: "ws://localhost:4455",
   obsPassword: "",
   roomAgentBase: "",      // RoomAgent URL for session info (lower third text)
-  presenterHubBase: "",   // Optional — PresenterHub heartbeat
+  voxorPresenterBase: "",   // Optional — Voxor Presenter heartbeat
   room: "",               // Used for recordings folder organisation
   recordingsRoot: RECORDINGS_DIR,
   autoRemuxToMp4: true,
@@ -511,12 +511,12 @@ async function pollRoomAgent() {
   }
 }
 
-// ─── Heartbeat to PresenterHub (optional) ────────────────────────────────────
+// ─── Heartbeat to Voxor Presenter (optional) ────────────────────────────────────
 async function sendHeartbeat() {
   const cfg = readConfig();
-  if (!cfg.presenterHubBase) return;
+  if (!cfg.voxorPresenterBase) return;
   try {
-    await fetch(`${cfg.presenterHubBase}/api/agents/heartbeat`, {
+    await fetch(`${cfg.voxorPresenterBase}/api/agents/heartbeat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

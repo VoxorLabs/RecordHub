@@ -5,7 +5,7 @@ RecordHub is a Node.js/Express server (port 3299) that automates conference sess
 
 - **RecordHub** (this repo) — runs on the recording PC, controls OBS via WebSocket
 - **RoomAgent** — runs on the room kiosk laptop, manages the session schedule, sends triggers to RecordHub
-- **PresenterHub** — central hub (optional heartbeat target)
+- **Voxor Presenter** — central hub (optional heartbeat target)
 
 ## Architecture — critical to understand
 
@@ -45,7 +45,7 @@ enables it — the page handles timing. `hideLowerThird()` is a no-op.
   "obsWebSocketUrl": "ws://localhost:4455",
   "obsPassword": "",
   "roomAgentBase": "http://<roompc>:3199",
-  "presenterHubBase": "http://<hub>:8088",
+  "voxorPresenterBase": "http://<hub>:8088",
   "room": "BallroomA",
   "recordingsRoot": "C:\\path\\to\\recordings",
   "autoRemuxToMp4": true,

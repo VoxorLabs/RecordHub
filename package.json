@@ -1,5 +1,5 @@
 {
-  "name": "presenterhub-recordhub",
+  "name": "voxor-presenter-recordhub",
   "version": "2.1.0",
   "description": "Automated session recording sidecar — OBS WebSocket integration with auto lower thirds",
   "main": "recordhub.js",
