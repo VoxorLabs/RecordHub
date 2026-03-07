@@ -30,12 +30,15 @@ const DEFAULTS = {
   obsPassword: "",
   roomAgentBase: "",      // RoomAgent URL for session info (lower third text)
   voxorPresenterBase: "",   // Optional — Voxor Presenter heartbeat
+  agentToken: "",         // Must match AGENT_TOKEN on Voxor Presenter server
   room: "",               // Used for recordings folder organisation
   recordingsRoot: RECORDINGS_DIR,
   autoRemuxToMp4: true,
   introImagePath: "",      // path to PNG/JPG intro card shown before recording
   introDurationSecs: 4,   // seconds to display the intro card
   orgName: "",             // event/organisation name shown in lower third badge
+  triggerToken: "",        // optional auth token for /api/trigger (empty = open)
+  maxRecordingHours: 4,   // auto-stop safety limit (hours)
   verbose: true,
 };
 
@@ -234,7 +237,9 @@ async function upsertSource(scene, name, kinds, settings) {
       }
     }
     if (!created) {
-      throw new Error(`Cannot create "${name}" — tried kinds: ${kinds.join(", ")}`);
+      log(`LT WARNING: Cannot create "${name}" — tried kinds: ${kinds.join(", ")}. Recording will continue without lower third.`);
+      addError(`Lower third unavailable — browser_source kind not found`);
+      return null;
     }
   }
 
@@ -282,6 +287,8 @@ async function showLowerThird(title, presenter) {
       css:      "",
       shutdown: false,
     });
+
+    if (ltId == null) return; // browser_source unavailable — skip silently
 
     // 4. Position at 0,0 covering full canvas (source is already 1920×1080)
     await obs.call("SetSceneItemTransform", {
@@ -434,13 +441,15 @@ let autoStopTimer = null;
 
 function scheduleAutoStop() {
   cancelAutoStop();
+  const cfg = readConfig();
+  const hours = Math.max(1, Number(cfg.maxRecordingHours) || 4);
   autoStopTimer = setTimeout(async () => {
     if (!STATE.recording) return;
-    log("AUTO-STOP: 4-hour safety limit reached");
+    log(`AUTO-STOP: ${hours}-hour safety limit reached`);
     STATE.pendingSession = STATE.currentSession;
     STATE.currentSession = null;
     try { await obsStopRecord(); } catch (e) { log("AUTO-STOP ERROR", e.message); }
-  }, 4 * 60 * 60 * 1000);
+  }, hours * 60 * 60 * 1000);
 }
 
 function cancelAutoStop() {
@@ -516,9 +525,11 @@ async function sendHeartbeat() {
   const cfg = readConfig();
   if (!cfg.voxorPresenterBase) return;
   try {
+    const hbHeaders = { "Content-Type": "application/json" };
+    if (cfg.agentToken) hbHeaders["X-Agent-Token"] = cfg.agentToken;
     await fetch(`${cfg.voxorPresenterBase}/api/agents/heartbeat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: hbHeaders,
       body: JSON.stringify({
         room: cfg.room || os.hostname(), type: "recordhub", pcname: os.hostname(),
         recording: STATE.recording, obsConnected: STATE.obsConnected,
@@ -668,8 +679,15 @@ function startServer() {
   //
   app.post("/api/trigger", async (req, res) => {
     try {
-      const { action, sessionId, title, presenter, room, date, start } = req.body || {};
       const c = readConfig();
+      // Optional token auth — if triggerToken is set, require it
+      if (c.triggerToken) {
+        const token = req.headers["x-trigger-token"] || req.headers["x-agent-token"] || (req.body && req.body.token) || "";
+        if (token !== c.triggerToken) {
+          return res.status(401).json({ ok: false, error: "Invalid or missing trigger token" });
+        }
+      }
+      const { action, sessionId, title, presenter, room, date, start } = req.body || {};
 
       if (action === "start") {
         // Stop any in-progress recording before starting a new one
